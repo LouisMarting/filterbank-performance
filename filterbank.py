@@ -26,7 +26,7 @@ class TransmissionLine:
         return k
 
 class Coupler:
-    def __init__(self, f0, Ql, Z_coupler, Qi=np.inf, topology='series', res_length='halfwave') -> None:
+    def __init__(self, f0, Ql, Z_termination, Qi=np.inf, topology='series', res_length='halfwave') -> None:
         self.f0 = f0
         self.Ql = Ql
         self.Qi = Qi
@@ -34,8 +34,8 @@ class Coupler:
             self.Qc = 2 * Ql
         else:
             self.Qc = 2 * Qi * Ql / (Qi - Ql)
-        assert len(np.array([Z_coupler]).flatten()) < 3, "Z_coupler has too many components (max 2 components)"
-        self.Z_coupler = np.array([Z_coupler]).flatten()
+        assert len(np.atleast_1d(Z_termination)) < 3, "Z_termination has too many components (max 2 components)"
+        self.Z_termination = np.atleast_1d(Z_termination)
 
         if topology not in ('series','parallel'):
             raise ValueError(f"topology must be either 'series' or 'parallel', your input was '{topology}'")
@@ -52,8 +52,8 @@ class Coupler:
         if not Qc:
             Qc = self.Qc
         
-        R1, X1 = np.real(self.Z_coupler[0]), np.imag(self.Z_coupler[0])
-        R2, X2 = np.real(self.Z_coupler[-1]), np.imag(self.Z_coupler[-1])
+        R1, X1 = np.real(self.Z_termination[0]), np.imag(self.Z_termination[0])
+        R2, X2 = np.real(self.Z_termination[-1]), np.imag(self.Z_termination[-1])
         
         n_cycles = {'halfwave':1,'quarterwave':2}.get(self.res_length)
 
@@ -78,12 +78,12 @@ class Resonator:
         self.Ql = Ql
         self.TransmissionLine = TransmissionLine
 
-        assert len(np.array([Z_termination]).flatten()) < 3, "Z_termination has too many components (max 2 components)"
-        self.Z_termination = np.array([Z_termination]).flatten()
+        assert len(np.atleast_1d(Z_termination)) < 3, "Z_termination has too many components (max 2 components)"
+        self.Z_termination = np.atleast_1d(Z_termination)
 
-        self.Coupler1 = Coupler(f0,Ql,Z_coupler=[TransmissionLine.Z0, Z_termination[0]],Qi=TransmissionLine.Qi)
+        self.Coupler1 = Coupler(f0=f0,Ql=Ql,Z_termination=[TransmissionLine.Z0, Z_termination[0]],Qi=TransmissionLine.Qi)
 
-        self.Coupler2 = Coupler(f0,Ql,Z_coupler=[TransmissionLine.Z0, Z_termination[-1]],Qi=TransmissionLine.Qi)
+        self.Coupler2 = Coupler(f0=f0,Ql=Ql,Z_termination=[TransmissionLine.Z0, Z_termination[-1]],Qi=TransmissionLine.Qi)
 
     def resonator_length(self):
         pass

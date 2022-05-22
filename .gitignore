@@ -1,3 +1,5 @@
 /pyvenv
+/venv
 *.csv
 *.pdf
+.vscode
