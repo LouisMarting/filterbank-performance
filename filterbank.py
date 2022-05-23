@@ -68,8 +68,15 @@ class Coupler:
             
         X = (-B - np.sqrt(B**2 - 4 * A * C)) / (2 * A)
     
-        c_coup = -1 / (2 * np.pi * self.f0 * X)
-        return c_coup
+        C_coup = -1 / (2 * np.pi * self.f0 * X)
+        return C_coup
+
+    def impedance(self,f):
+        Z = -1j / (2 * np.pi * f * self.C)
+        return Z
+    
+    def add_variance(self):
+        pass
 
 
 class Resonator:
@@ -86,7 +93,30 @@ class Resonator:
         self.Coupler2 = Coupler(f0=f0,Ql=Ql,Z_termination=[TransmissionLine.Z0, Z_termination[-1]],Qi=TransmissionLine.Qi)
 
     def resonator_length(self):
-        pass
+        Z1 = self.Z_termination[0]
+        Z2 = self.Z_termination[-1]
+        Zres = self.TransmissionLine.Z0
+        
+        if Z1 == 0:
+            Z_Coupler1 = 0
+        else:
+            Z_Coupler1 = self.Coupler1.impedance(self.f0)
+
+        if Z2 == 0:
+            Z_Coupler2 = 0
+        else:
+            Z_Coupler2 = self.Coupler2.impedance(self.f0)
+        
+        A = Z_Coupler2 + Z2
+        
+        kl = np.arctan( (Z1 - Z_Coupler1 - A) / (-1j * (Z1 * A / Zres - Z_Coupler1 * A / Zres - Zres)) )
+        kl[kl<0] = kl[kl<0] + np.pi
+
+        lres = np.real(kl / self.TransmissionLine.wavenumber(self.f0))
+        return lres
+
+
+
 
 
 
