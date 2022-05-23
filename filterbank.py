@@ -1,6 +1,11 @@
-from cmath import inf
-from logging import raiseExceptions
 import numpy as np
+import time
+
+# own functions
+from transformations import *
+from transformations import abcd_seriesload
+from transformations import abcd_shuntload
+from transformations import y2abcd
 
 ### Physical constants ###
 mu0 = np.pi*4e-7
@@ -25,6 +30,19 @@ class TransmissionLine:
         k = 2 * np.pi / lmda * (1 - 1j / (2*self.Qi))
         return k
 
+    def ABCD(self,f,l):
+        g = 1j * self.wavenumber(f)
+
+        A = np.cosh(g * l)
+        B = self.Z0 * np.sinh(g * l)
+        C = np.sinh(g * l) / self.Z0
+        D = np.cosh(g * l)
+
+        ABCD = np.array([[A,B],[C,D]])
+        return ABCD
+
+
+
 class Coupler:
     def __init__(self, f0, Ql, Z_termination, Qi=np.inf, topology='series', res_length='halfwave') -> None:
         self.f0 = f0
@@ -37,12 +55,10 @@ class Coupler:
         assert len(np.atleast_1d(Z_termination)) < 3, "Z_termination has too many components (max 2 components)"
         self.Z_termination = np.atleast_1d(Z_termination)
 
-        if topology not in ('series','parallel'):
-            raise ValueError(f"topology must be either 'series' or 'parallel', your input was '{topology}'")
+        assert topology in ('series','parallel')
         self.topology = topology
         
-        if res_length not in ('halfwave','quarterwave'):
-            raise ValueError(f"res_length must be either 'halfwave' or 'quarterwave', your input was '{res_length}'")
+        assert res_length in ('halfwave','quarterwave')
         self.res_length = res_length
         
         self.C = self.capacitance()
@@ -71,12 +87,22 @@ class Coupler:
         C_coup = -1 / (2 * np.pi * self.f0 * X)
         return C_coup
 
+
     def impedance(self,f):
         Z = -1j / (2 * np.pi * f * self.C)
         return Z
     
+
     def add_variance(self):
         pass
+
+    def ABCD(self,f):
+        Z = self.impedance(f)
+
+        ABCD = abcd_seriesload(Z)
+
+        return ABCD
+        
 
 
 class Resonator:
@@ -88,9 +114,12 @@ class Resonator:
         assert len(np.atleast_1d(Z_termination)) < 3, "Z_termination has too many components (max 2 components)"
         self.Z_termination = np.atleast_1d(Z_termination)
 
-        self.Coupler1 = Coupler(f0=f0,Ql=Ql,Z_termination=[TransmissionLine.Z0, Z_termination[0]],Qi=TransmissionLine.Qi)
+        self.Coupler1 = Coupler(f0=f0,Ql=Ql,Z_termination=[TransmissionLine.Z0, self.Z_termination[0]],Qi=TransmissionLine.Qi)
 
-        self.Coupler2 = Coupler(f0=f0,Ql=Ql,Z_termination=[TransmissionLine.Z0, Z_termination[-1]],Qi=TransmissionLine.Qi)
+        self.Coupler2 = Coupler(f0=f0,Ql=Ql,Z_termination=[TransmissionLine.Z0, self.Z_termination[-1]],Qi=TransmissionLine.Qi)
+
+        self.l_res = self.resonator_length()
+
 
     def resonator_length(self):
         Z1 = self.Z_termination[0]
@@ -109,11 +138,57 @@ class Resonator:
         
         A = Z_Coupler2 + Z2
         
-        kl = np.arctan( (Z1 - Z_Coupler1 - A) / (-1j * (Z1 * A / Zres - Z_Coupler1 * A / Zres - Zres)) )
+        kl = np.array(np.arctan( (Z1 - Z_Coupler1 - A) / (-1j * (Z1 * A / Zres - Z_Coupler1 * A / Zres - Zres)) ))
         kl[kl<0] = kl[kl<0] + np.pi
 
         lres = np.real(kl / self.TransmissionLine.wavenumber(self.f0))
         return lres
+
+    def ABCD(self,f):
+        ABCD = chain(
+                        self.Coupler1.ABCD(f), 
+                        self.TransmissionLine.ABCD(f,self.l_res),
+                        self.Coupler2.ABCD(f)
+                    )
+        
+        return ABCD
+        
+
+class BaseFilter:
+    pass
+
+    
+
+
+class DirectionalFilter():
+    def __init__(self, f0, Ql, TransmissionLine_resonator : TransmissionLine, TransmissionLine_through : TransmissionLine, TransmissionLine_MKID : TransmissionLine) -> None:
+        self.f0 = f0
+        self.Ql = Ql
+        self.TransmissionLine_resonator = TransmissionLine_resonator
+        self.TransmissionLine_through = TransmissionLine_through
+        self.TransmissionLine_MKID = TransmissionLine_MKID
+        self.lmda_quarter = TransmissionLine_through.wavelength(f0) / 4
+        self.lmda_3quarter = TransmissionLine_MKID.wavelength(f0) * 3 / 4
+
+        self.Resonator1 = Resonator(f0=f0, Ql=Ql, TransmissionLine=TransmissionLine_resonator, Z_termination=[TransmissionLine_through.Z0,TransmissionLine_MKID.Z0])
+        self.Resonator2 = Resonator(f0=f0, Ql=Ql, TransmissionLine=TransmissionLine_resonator, Z_termination=[TransmissionLine_through.Z0,TransmissionLine_MKID.Z0])
+        
+    
+    def ABCD(self, f):
+        ABCD_lower = chain(
+                            
+                            self.Resonator1.ABCD(f), 
+                            abcd_shuntload(self.TransmissionLine_MKID.Z0),
+                            self.TransmissionLine_MKID.ABCD(f, l=self.lmda_3quarter),
+                            abcd_shuntload(self.TransmissionLine_MKID.Z0),
+                            self.Resonator2.ABCD(f)
+                        )
+        
+        Y_lower = abcd2y(ABCD_lower)
+        Y_upper = abcd2y(self.TransmissionLine_through.ABCD(f, l=self.lmda_quarter))
+        ABCD = y2abcd(Y_lower + Y_upper)
+
+        return ABCD
 
 
 
@@ -128,19 +203,5 @@ class Resonator:
 class Filterbank:
     def __init__(self) -> None:
         pass
-
-class BaseFilter:
-    def __init__(self) -> None:
-        self.test = 1
-
-    def resonatorABCD(self):
-        pass
-
-
-class DirectionalFilter(BaseFilter):
-    def __init__(self) -> None:
-        super().__init__()
-    
-
 
 
