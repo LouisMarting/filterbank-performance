@@ -1,3 +1,4 @@
+from os import remove
 import numpy as np
 
 def chain(ABCDmatrix1,*ABCDmatrices):
@@ -9,15 +10,36 @@ def chain(ABCDmatrix1,*ABCDmatrices):
         ABCD_out = (ABCD_out.T @ ABCDmatrix.T).T
     return ABCD_out
 
+def unchain(ABCDmatrix,*ABCDmatrices_to_remove,remove_from='front'):
+    assert remove_from in ('front','back')
+
+    ABCD_out = ABCDmatrix
+    if remove_from == 'front':
+        for ABCDmatrix_to_remove in ABCDmatrices_to_remove:
+            ABCD_out = (np.linalg.inv(ABCDmatrix_to_remove.T) @ ABCD_out.T).T
+    elif remove_from == 'back':
+        for ABCDmatrix_to_remove in ABCDmatrices_to_remove:
+            ABCD_out = (ABCD_out.T @ np.linalg.inv(ABCDmatrix_to_remove.T)).T
+    
+    return ABCD_out
+
+
+def abcd_parallel(ABCD1,ABCD2):
+    Y1 = abcd2y(ABCD1)
+    Y2 = abcd2y(ABCD2)
+    ABCD = y2abcd(Y1 + Y2)
+
+    return ABCD
+
 
 def abcd_shuntload(Z):
     assert np.array(Z).ndim < 2 
-    nF = np.size(Z)
+    Z = np.array(Z,dtype=np.cfloat)
 
-    A = np.ones(nF)
-    B = np.zeros(nF)
+    A = np.ones_like(Z)
+    B = np.zeros_like(Z)
     C = 1 / Z
-    D = np.ones(nF)
+    D = np.ones_like(Z)
 
     ABCD = [[A,B],[C,D]]
 
@@ -26,12 +48,12 @@ def abcd_shuntload(Z):
 
 def abcd_seriesload(Z):
     assert np.array(Z).ndim < 2 
-    nF = np.size(Z)
+    Z = np.array(Z,dtype=np.cfloat)
 
-    A = np.ones(nF)
+    A = np.ones_like(Z)
     B = Z
-    C = np.zeros(nF)
-    D = np.ones(nF)
+    C = np.zeros_like(Z)
+    D = np.ones_like(Z)
 
     ABCD = [[A,B],[C,D]]
     
@@ -57,7 +79,7 @@ def Zin_from_abcd(ABCD,Z_L,load_pos='load'):
 
 
 def abcd2s(ABCD,Z0):
-    S = np.empty_like(ABCD)
+    S = np.empty_like(ABCD,dtype=np.cfloat)
     
     A = ABCD[0][0]
     B = ABCD[0][1]
@@ -78,7 +100,7 @@ def abcd2s(ABCD,Z0):
 
 
 def abcd2z(ABCD):
-    Z = np.empty_like(ABCD)
+    Z = np.empty_like(ABCD,dtype=np.cfloat)
     
     A = ABCD[0][0]
     B = ABCD[0][1]
@@ -94,7 +116,7 @@ def abcd2z(ABCD):
 
 
 def abcd2y(ABCD):
-    Y = np.empty_like(ABCD)
+    Y = np.empty_like(ABCD,dtype=np.cfloat)
     
     A = ABCD[0][0]
     B = ABCD[0][1]
@@ -110,7 +132,7 @@ def abcd2y(ABCD):
 
 
 def s2abcd(S,Z0):
-    ABCD = np.empty_like(S)
+    ABCD = np.empty_like(S,dtype=np.cfloat)
     
     S11 = S[0][0]
     S12 = S[0][1]
@@ -135,7 +157,7 @@ def z2abcd():
 
 
 def y2abcd(Y):
-    ABCD = np.empty_like(Y)
+    ABCD = np.empty_like(Y,dtype=np.cfloat)
 
     Y11 = Y[0][0]
     Y12 = Y[0][1]

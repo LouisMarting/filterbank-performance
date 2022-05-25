@@ -153,47 +153,120 @@ class Resonator:
         
         return ABCD
         
-
-class BaseFilter:
-    pass
-
-    
-
-
-class DirectionalFilter():
-    def __init__(self, f0, Ql, TransmissionLine_resonator : TransmissionLine, TransmissionLine_through : TransmissionLine, TransmissionLine_MKID : TransmissionLine) -> None:
+class BaseFilter():
+    def __init__(self, f0, Ql, TransmissionLines : dict) -> None:
         self.f0 = f0
         self.Ql = Ql
-        self.TransmissionLine_resonator = TransmissionLine_resonator
-        self.TransmissionLine_through = TransmissionLine_through
-        self.TransmissionLine_MKID = TransmissionLine_MKID
-        self.lmda_quarter = TransmissionLine_through.wavelength(f0) / 4
-        self.lmda_3quarter = TransmissionLine_MKID.wavelength(f0) * 3 / 4
 
-        self.Resonator1 = Resonator(f0=f0, Ql=Ql, TransmissionLine=TransmissionLine_resonator, Z_termination=[TransmissionLine_through.Z0,TransmissionLine_MKID.Z0])
-        self.Resonator2 = Resonator(f0=f0, Ql=Ql, TransmissionLine=TransmissionLine_resonator, Z_termination=[TransmissionLine_through.Z0,TransmissionLine_MKID.Z0])
+        assert ('through','resonator','MKID') in TransmissionLines.keys()
+        self.TransmissionLines = TransmissionLines
+        self.TransmissionLine_through : TransmissionLine = self.TransmissionLines['through']
+        self.TransmissionLine_resonator : TransmissionLine = self.TransmissionLines['resonator']
+        self.TransmissionLine_MKID : TransmissionLine = self.TransmissionLines['MKID']
+
+        self.sep = self.TransmissionLine_through.wavelength(f0) / 4
+    
+    def ABCD_sep(self, f):
+        ABCD = self.TransmissionLine_through.ABCD(f,self.lmda_quarter)
+
+        return ABCD
+
+    def ABCD_shunt_termination(self, f, ABCD_to_termination, Z_termination):
+        ABCD = abcd_shuntload(
+            Zin_from_abcd(
+                chain(
+                    self.ABCD_sep(f),
+                    ABCD_to_termination
+                ),
+                Z_termination
+            )
+        )
+
+        return ABCD
+    
+    def ABCD(self, f):
+        # In childs: Add code to construct filter
+        pass
+
+    def ABCD_to_MKID(self, f, ABCD_to_termination, Z_termination):
+        ABCD_shunt_termination = self.ABCD_shunt_termination(f, ABCD_to_termination, Z_termination)
+        # In childs: Add code to construct to MKID structure
+        pass
+
+class DirectionalFilter():
+    def __init__(self, f0, Ql, TransmissionLines : dict) -> None:
+        #ADD init self.super()
+        self.f0 = f0
+        self.Ql = Ql
+
+        assert ('through','resonator','MKID') in TransmissionLines.keys()
+        self.TransmissionLines = TransmissionLines
+        self.TransmissionLine_through : TransmissionLine = self.TransmissionLines['through']
+        self.TransmissionLine_resonator : TransmissionLine = self.TransmissionLines['resonator']
+        self.TransmissionLine_MKID : TransmissionLine = self.TransmissionLines['MKID']
+        
+        self.lmda_quarter = self.TransmissionLine_through.wavelength(f0) / 4
+        self.lmda_3quarter = self.TransmissionLine_MKID.wavelength(f0) * 3 / 4
+        self.sep = self.lmda_quarter
+
+        self.Resonator1 = Resonator(f0=f0, Ql=Ql, TransmissionLine=self.TransmissionLine_resonator, Z_termination=[self.TransmissionLine_through.Z0,self.TransmissionLine_MKID.Z0])
+        self.Resonator2 = Resonator(f0=f0, Ql=Ql, TransmissionLine=self.TransmissionLine_resonator, Z_termination=[self.TransmissionLine_through.Z0,self.TransmissionLine_MKID.Z0])
         
     
     def ABCD(self, f):
         ABCD_lower = chain(
-                            
-                            self.Resonator1.ABCD(f), 
-                            abcd_shuntload(self.TransmissionLine_MKID.Z0),
-                            self.TransmissionLine_MKID.ABCD(f, l=self.lmda_3quarter),
-                            abcd_shuntload(self.TransmissionLine_MKID.Z0),
-                            self.Resonator2.ABCD(f)
-                        )
+            self.Resonator1.ABCD(f), 
+            abcd_shuntload(self.TransmissionLine_MKID.Z0),
+            self.TransmissionLine_MKID.ABCD(f,self.lmda_3quarter),
+            abcd_shuntload(self.TransmissionLine_MKID.Z0),
+            self.Resonator2.ABCD(f)
+        )
         
-        Y_lower = abcd2y(ABCD_lower)
-        Y_upper = abcd2y(self.TransmissionLine_through.ABCD(f, l=self.lmda_quarter))
-        ABCD = y2abcd(Y_lower + Y_upper)
+        ABCD = abcd_parallel(ABCD_lower,self.TransmissionLine_through.ABCD(f, l=self.lmda_quarter))
 
         return ABCD
 
+    def ABCD_sep(self, f):
+        ABCD = self.TransmissionLine_through.ABCD(f,self.lmda_quarter)
 
+        return ABCD
 
+    def ABCD_to_MKID(self, f, ABCD_to_termination, Z_termination):
+        # Replace with BaseFilter function
+        ABCD_shunt_termination = abcd_shuntload(
+            Zin_from_abcd(
+                chain(
+                    self.ABCD_sep(f),
+                    ABCD_to_termination
+                ),
+                Z_termination
+            )
+        )
 
+        ABCD_upper = chain(
+            self.TransmissionLine_through.ABCD(f, l=self.lmda_quarter),
+            ABCD_shunt_termination,
+            self.Resonator2.ABCD(f)
+        )
 
+        ABCD_lower = chain(
+            self.Resonator1.ABCD(f),
+            abcd_shuntload(self.TransmissionLine_MKID.Z0),
+            self.TransmissionLine_MKID.ABCD(f,self.lmda_3quarter)
+        )
+
+        ABCD_port4 = abcd_parallel(ABCD_upper,ABCD_lower)
+
+        ABCD_upper_port3 = chain(
+            ABCD_upper,
+            abcd_shuntload(self.TransmissionLine_MKID.Z0),
+            self.TransmissionLine_MKID.ABCD(f,self.lmda_3quarter)
+        )
+        
+        ABCD_port3 = abcd_parallel(ABCD_upper_port3,self.Resonator1.ABCD(f))
+
+        ABCDs = (ABCD_port3,ABCD_port4)
+        return ABCDs
 
 
 
@@ -201,7 +274,37 @@ class DirectionalFilter():
 
 
 class Filterbank:
-    def __init__(self) -> None:
-        pass
+    def __init__(self, FilterClass : object, f0_min, f0_max, Ql, oversampling=1, sigma_f0=0, sigma_Ql=0) -> None:
+        self.FilterClass = FilterClass
+        self.f0_min = f0_min
+        self.f0_max = f0_max
+        self.Ql = Ql
+        self.sigma_f0 = sigma_f0
+        self.sigma_Ql = sigma_Ql
+        
+        assert oversampling > 0
+        self.oversampling = oversampling
+
+        self.n_filters = np.floor(1 + np.log10(f0_max / f0_min) / np.log10(1 + 1 / (Ql * oversampling)))
+        
+        f0 = np.zeros(self.n_filters)
+        f0[0] = f0_min
+        for i in np.arange(1,self.n_filters):
+            f0[i] = f0[i-1] + f0[i-1] / (Ql * oversampling)
+        self.f0 = np.flip(f0)
+
+        self.Filters = np.empty(self.n_filters,dtype=FilterClass)
+        for i in np.arange(self.n_filters):
+            self.Filters[i] = FilterClass()
+
+
+
+
+
+
+
+        
+        
+        
 
 
