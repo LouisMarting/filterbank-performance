@@ -1,6 +1,7 @@
 from os import remove
 import numpy as np
 
+
 def chain(ABCDmatrix1,*ABCDmatrices):
     if len(ABCDmatrices) < 1:
         raise RuntimeError("chain() needs at least two ABCD matrices")
@@ -91,28 +92,31 @@ def abcd2s(ABCD,Z0):
 
     den = A * Z0_2 + B + C * Z0_1 * Z0_2 + D * Z0_1
     
-    S[0][0] = (A * Z0_2 + B - C * np.np.conj(Z0_1) * Z0_2 - D * np.np.conj(Z0_1)) / den
-    S[0][1] = (2 * (A * D - B * C) * (np.np.real(Z0_1) * np.np.real(Z0_2)) **0.5) / den
-    S[1][0] = (2 * (np.np.real(Z0_1) * np.np.real(Z0_2)) **0.5) / den
-    S[1][1] = (-A * np.np.conj(Z0_2) + B - C * Z0_1 * np.np.conj(Z0_2) + D * Z0_1) / den
+    S[0][0] = (A * Z0_2 + B - C * np.conj(Z0_1) * Z0_2 - D * np.conj(Z0_1)) / den
+    S[0][1] = (2 * (A * D - B * C) * (np.real(Z0_1) * np.real(Z0_2)) **0.5) / den
+    S[1][0] = (2 * (np.real(Z0_1) * np.real(Z0_2)) **0.5) / den
+    S[1][1] = (-A * np.conj(Z0_2) + B - C * Z0_1 * np.conj(Z0_2) + D * Z0_1) / den
 
     return np.array(S)
 
 
 def abcd2z(ABCD):
-    Z = np.empty_like(ABCD,dtype=np.cfloat)
-    
-    A = ABCD[0][0]
-    B = ABCD[0][1]
-    C = ABCD[1][0]
-    D = ABCD[1][1]
+    try:
+        Z = np.empty_like(ABCD,dtype=np.cfloat)
+        
+        A = ABCD[0][0]
+        B = ABCD[0][1]
+        C = ABCD[1][0]
+        D = ABCD[1][1]
 
-    Z[0][0] = A / C
-    Z[0][1] = (A * D - B * C) / C
-    Z[1][0] = 1 / C
-    Z[1][1] = D / C
+        Z[0][0] = A / C
+        Z[0][1] = (A * D - B * C) / C
+        Z[1][0] = 1 / C
+        Z[1][1] = D / C
 
-    return np.array(Z)
+        return np.array(Z)
+    except RuntimeWarning:
+        raise RuntimeError
 
 
 def abcd2y(ABCD):

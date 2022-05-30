@@ -6,6 +6,7 @@ from transformations import *
 from transformations import abcd_seriesload
 from transformations import abcd_shuntload
 from transformations import y2abcd
+from transformations import abcd2s
 
 ### Physical constants ###
 mu0 = np.pi*4e-7
@@ -158,7 +159,7 @@ class BaseFilter():
         self.f0 = f0
         self.Ql = Ql
 
-        assert ('through','resonator','MKID') in TransmissionLines.keys()
+        assert all(key in ('through','resonator','MKID') for key in TransmissionLines.keys()), "TranmissionLines dict needs at least the keys: ('through','resonator','MKID')"
         self.TransmissionLines = TransmissionLines
         self.TransmissionLine_through : TransmissionLine = self.TransmissionLines['through']
         self.TransmissionLine_resonator : TransmissionLine = self.TransmissionLines['resonator']
@@ -167,18 +168,18 @@ class BaseFilter():
         self.sep = self.TransmissionLine_through.wavelength(f0) / 4
     
     def ABCD_sep(self, f):
-        ABCD = self.TransmissionLine_through.ABCD(f,self.lmda_quarter)
+        ABCD = self.TransmissionLine_through.ABCD(f,self.sep)
 
         return ABCD
 
-    def ABCD_shunt_termination(self, f, ABCD_to_termination, Z_termination):
+    def ABCD_shunt_termination(self, f, ABCD_to_termination):
         ABCD = abcd_shuntload(
             Zin_from_abcd(
                 chain(
                     self.ABCD_sep(f),
                     ABCD_to_termination
                 ),
-                Z_termination
+                self.TransmissionLine_through.Z0
             )
         )
 
@@ -188,23 +189,27 @@ class BaseFilter():
         # In childs: Add code to construct filter
         pass
 
-    def ABCD_to_MKID(self, f, ABCD_to_termination, Z_termination):
-        ABCD_shunt_termination = self.ABCD_shunt_termination(f, ABCD_to_termination, Z_termination)
+    def ABCD_to_MKID(self, f, ABCD_to_termination):
+        ABCD_shunt_termination = self.ABCD_shunt_termination(f, ABCD_to_termination)
         # In childs: Add code to construct to MKID structure
         pass
 
-class DirectionalFilter():
-    def __init__(self, f0, Ql, TransmissionLines : dict) -> None:
-        #ADD init self.super()
-        self.f0 = f0
-        self.Ql = Ql
 
-        assert ('through','resonator','MKID') in TransmissionLines.keys()
-        self.TransmissionLines = TransmissionLines
-        self.TransmissionLine_through : TransmissionLine = self.TransmissionLines['through']
-        self.TransmissionLine_resonator : TransmissionLine = self.TransmissionLines['resonator']
-        self.TransmissionLine_MKID : TransmissionLine = self.TransmissionLines['MKID']
-        
+
+class ManifoldFilter(BaseFilter):
+    def __init__(self, f0, Ql, TransmissionLines: dict) -> None:
+        super().__init__(f0, Ql, TransmissionLines)
+
+
+class ReflectorFilter(BaseFilter):
+    def __init__(self, f0, Ql, TransmissionLines: dict) -> None:
+        super().__init__(f0, Ql, TransmissionLines)
+
+
+class DirectionalFilter(BaseFilter):
+    def __init__(self, f0, Ql, TransmissionLines : dict) -> None:
+        super().__init__(f0, Ql, TransmissionLines)
+
         self.lmda_quarter = self.TransmissionLine_through.wavelength(f0) / 4
         self.lmda_3quarter = self.TransmissionLine_MKID.wavelength(f0) * 3 / 4
         self.sep = self.lmda_quarter
@@ -226,22 +231,9 @@ class DirectionalFilter():
 
         return ABCD
 
-    def ABCD_sep(self, f):
-        ABCD = self.TransmissionLine_through.ABCD(f,self.lmda_quarter)
 
-        return ABCD
-
-    def ABCD_to_MKID(self, f, ABCD_to_termination, Z_termination):
-        # Replace with BaseFilter function
-        ABCD_shunt_termination = abcd_shuntload(
-            Zin_from_abcd(
-                chain(
-                    self.ABCD_sep(f),
-                    ABCD_to_termination
-                ),
-                Z_termination
-            )
-        )
+    def ABCD_to_MKID(self, f, ABCD_to_termination):
+        ABCD_shunt_termination = self.ABCD_shunt_termination(f, ABCD_to_termination)
 
         ABCD_upper = chain(
             self.TransmissionLine_through.ABCD(f, l=self.lmda_quarter),
@@ -274,8 +266,9 @@ class DirectionalFilter():
 
 
 class Filterbank:
-    def __init__(self, FilterClass : object, f0_min, f0_max, Ql, oversampling=1, sigma_f0=0, sigma_Ql=0) -> None:
+    def __init__(self, FilterClass : BaseFilter, TransmissionLines : dict, f0_min, f0_max, Ql, oversampling=1, sigma_f0=0, sigma_Ql=0) -> None:
         self.FilterClass = FilterClass
+        self.TransmissionLines = TransmissionLines
         self.f0_min = f0_min
         self.f0_max = f0_max
         self.Ql = Ql
@@ -285,7 +278,7 @@ class Filterbank:
         assert oversampling > 0
         self.oversampling = oversampling
 
-        self.n_filters = np.floor(1 + np.log10(f0_max / f0_min) / np.log10(1 + 1 / (Ql * oversampling)))
+        self.n_filters = int(np.floor(1 + np.log10(f0_max / f0_min) / np.log10(1 + 1 / (Ql * oversampling))))
         
         f0 = np.zeros(self.n_filters)
         f0[0] = f0_min
@@ -293,18 +286,71 @@ class Filterbank:
             f0[i] = f0[i-1] + f0[i-1] / (Ql * oversampling)
         self.f0 = np.flip(f0)
 
-        self.Filters = np.empty(self.n_filters,dtype=FilterClass)
+        self.Filters = np.empty(self.n_filters,dtype=BaseFilter)
         for i in np.arange(self.n_filters):
-            self.Filters[i] = FilterClass()
+            self.Filters[i] = FilterClass(f0=f0[i], Ql=Ql, TransmissionLines = TransmissionLines)
+    
+    
+    def S(self,f):
+        Z0_thru = self.TransmissionLines['through'].Z0
+        Z0_mkid = self.TransmissionLines['MKID'].Z0
+        
+        ABCD_preceding = np.repeat(np.identity(2)[:,:,np.newaxis],len(f),axis=-1)
+        ABCD_succeeding = np.repeat(np.identity(2)[:,:,np.newaxis],len(f),axis=-1)
 
+        ABCD_list = np.empty((2,2,len(f),self.n_filters),dtype=np.cfloat)
+        ABCD_sep_list = np.empty((2,2,len(f),self.n_filters),dtype=np.cfloat)
+        
 
+        # Calculate a full filterbank chain
+        for i, Filter in enumerate(self.Filters):
+            Filter : BaseFilter # set the expected datatype of Filter
+            
 
+            # Eventually, these indexed lists could be replaced by cached versions.
+            ABCD_list[:,:,:,i] = Filter.ABCD(f)
+            ABCD_sep_list[:,:,:,i] = Filter.ABCD_sep(f)
 
-
-
-
+            ABCD_succeeding = chain(
+                ABCD_succeeding,
+                ABCD_list[:,:,:,i],
+                ABCD_sep_list[:,:,:,i] # Can we use np.insert() for these and do this calc faster outside of this for loop?
+            )
         
         
+        S = [abcd2s(ABCD_succeeding,Z0_thru)]
+
+
+        for i,Filter in enumerate(self.Filters):
+            Filter : BaseFilter # set the expected datatype of Filter
+            
+            # Remove the ith filter from the succeeding filters
+            ABCD_succeeding = unchain(
+                ABCD_succeeding,
+                ABCD_list[:,:,:,i],
+                ABCD_sep_list[:,:,:,i]
+            )
+
+            # Calculate the equivalent ABCD to the ith detector
+            ABCD_to_MKID = Filter.ABCD_to_MKID(f,ABCD_succeeding)
+
+            for ABCD_to_one_output in ABCD_to_MKID:
+                ABCD_through_filter = chain(
+                    ABCD_preceding,
+                    ABCD_to_one_output
+                )
+
+                S.append(abcd2s(ABCD_through_filter,[Z0_thru,Z0_mkid]))
+            
+            ABCD_preceding = chain(
+                ABCD_preceding,
+                ABCD_list[:,:,:,i],
+                ABCD_sep_list[:,:,:,i]
+            )
+
+            ABCD_succeeding = unchain(
+                ABCD_succeeding,
+                ABCD_sep_list[:,:,:,i]
+            )
         
-
-
+        return S

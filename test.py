@@ -1,6 +1,6 @@
 import numpy as np
 
-from filterbank import Resonator,TransmissionLine,DirectionalFilter
+from filterbank import Resonator,TransmissionLine,DirectionalFilter,Filterbank
 from transformations import chain,unchain
 
 
@@ -34,7 +34,7 @@ ABCD_res = Res.ABCD(f)
 
 print(ABCD_res[:,:,0])
 
-TestDirFilter =DirectionalFilter(f0,Ql,TL_res,TL_thru,TL_thru)
+TestDirFilter =DirectionalFilter(f0,Ql,TransmissionLines=TransmissionLines)
 
 ABCD_dir = TestDirFilter.ABCD(f)
 
@@ -42,4 +42,11 @@ ABCD_chain = chain(ABCD_dir,ABCD_dir)
 
 ABCD_unchained = unchain(ABCD_chain,ABCD_dir)
 
-print(np.isclose(ABCD_unchained,ABCD_dir))
+print(np.all(np.isclose(ABCD_unchained,ABCD_dir)))
+
+f0_min = 200e9
+f0_max = 400e9
+OmegaFilterbank = Filterbank(DirectionalFilter,TransmissionLines,f0_min=f0_min,f0_max=f0_max,Ql=100)
+
+f = np.linspace(180e9,440e9,int(1e3))
+S = OmegaFilterbank.S(f)
