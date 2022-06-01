@@ -168,10 +168,10 @@ def y2abcd(Y):
     Y21 = Y[1][0]
     Y22 = Y[1][1]
 
-    ABCD[0][1] = -Y22 / Y21
+    ABCD[0][0] = -Y22 / Y21
     ABCD[0][1] = -1 / Y21
-    ABCD[0][1] = (Y12 * Y21 - Y11 * Y22) / Y21
-    ABCD[0][1] = -Y11 / Y21
+    ABCD[1][0] = (Y12 * Y21 - Y11 * Y22) / Y21
+    ABCD[1][1] = -Y11 / Y21
 
     return np.array(ABCD)
 

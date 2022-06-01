@@ -214,8 +214,10 @@ class DirectionalFilter(BaseFilter):
         self.lmda_3quarter = self.TransmissionLine_MKID.wavelength(f0) * 3 / 4
         self.sep = self.lmda_quarter
 
-        self.Resonator1 = Resonator(f0=f0, Ql=Ql, TransmissionLine=self.TransmissionLine_resonator, Z_termination=[self.TransmissionLine_through.Z0,self.TransmissionLine_MKID.Z0])
-        self.Resonator2 = Resonator(f0=f0, Ql=Ql, TransmissionLine=self.TransmissionLine_resonator, Z_termination=[self.TransmissionLine_through.Z0,self.TransmissionLine_MKID.Z0])
+        self.Z0_termination = [self.TransmissionLine_through.Z0/2, self.TransmissionLine_MKID.Z0/2]
+
+        self.Resonator1 = Resonator(f0=f0, Ql=Ql, TransmissionLine=self.TransmissionLine_resonator, Z_termination=self.Z0_termination)
+        self.Resonator2 = Resonator(f0=f0, Ql=Ql, TransmissionLine=self.TransmissionLine_resonator, Z_termination=self.Z0_termination)
         
     
     def ABCD(self, f):
@@ -288,7 +290,7 @@ class Filterbank:
 
         self.Filters = np.empty(self.n_filters,dtype=BaseFilter)
         for i in np.arange(self.n_filters):
-            self.Filters[i] = FilterClass(f0=f0[i], Ql=Ql, TransmissionLines = TransmissionLines)
+            self.Filters[i] = FilterClass(f0=self.f0[i], Ql=Ql, TransmissionLines = TransmissionLines)
     
     
     def S(self,f):
