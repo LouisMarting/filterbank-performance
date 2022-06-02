@@ -8,7 +8,7 @@ def chain(ABCDmatrix1,*ABCDmatrices):
 
     ABCD_out = ABCDmatrix1
     for ABCDmatrix in ABCDmatrices:
-        ABCD_out = (ABCD_out.T @ ABCDmatrix.T).T
+        ABCD_out = np.moveaxis(np.moveaxis(ABCD_out,[0,1],[-2,-1]) @ np.moveaxis(ABCDmatrix,[0,1],[-2,-1]),[-1,-2],[1,0])
     return ABCD_out
 
 def unchain(ABCDmatrix,*ABCDmatrices_to_remove,remove_from='front'):
@@ -17,10 +17,10 @@ def unchain(ABCDmatrix,*ABCDmatrices_to_remove,remove_from='front'):
     ABCD_out = ABCDmatrix
     if remove_from == 'front':
         for ABCDmatrix_to_remove in ABCDmatrices_to_remove:
-            ABCD_out = (np.linalg.inv(ABCDmatrix_to_remove.T) @ ABCD_out.T).T
+            ABCD_out = np.moveaxis(np.linalg.inv(np.moveaxis(ABCDmatrix_to_remove,[0,1],[-2,-1])) @ np.moveaxis(ABCD_out,[0,1],[-2,-1]),[-1,-2],[1,0])
     elif remove_from == 'back':
         for ABCDmatrix_to_remove in ABCDmatrices_to_remove:
-            ABCD_out = (ABCD_out.T @ np.linalg.inv(ABCDmatrix_to_remove.T)).T
+            ABCD_out = np.moveaxis(np.moveaxis(ABCD_out,[0,1],[-2,-1]) @ np.linalg.inv(np.moveaxis(ABCDmatrix_to_remove,[0,1],[-2,-1])),[-1,-2],[1,0])
     
     return ABCD_out
 

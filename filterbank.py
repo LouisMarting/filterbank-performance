@@ -320,8 +320,7 @@ class Filterbank:
             )
         
         
-        S = [abcd2s(ABCD_succeeding,Z0_thru)]
-
+        S = []
 
         for i,Filter in enumerate(self.Filters):
             Filter : BaseFilter # set the expected datatype of Filter
@@ -354,5 +353,7 @@ class Filterbank:
                 ABCD_succeeding,
                 ABCD_sep_list[:,:,:,i]
             )
+        
+        S.insert(0, abcd2s(ABCD_preceding,Z0_thru))
         
         return S
