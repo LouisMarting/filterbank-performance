@@ -90,17 +90,29 @@ Filter : DirectionalFilter = OmegaFilterbank.Filters[26]
 
 ABCD = Filter.ABCD(f)
 
-
 S_filter = abcd2s(ABCD,Z0_thru)
 
 S11_absSq = np.abs(S_filter[0][0])**2
 S21_absSq = np.abs(S_filter[1][0])**2
 
 
+ABCD_termination = np.repeat(np.identity(2)[:,:,np.newaxis],len(f),axis=-1)
+ABCD = Filter.ABCD_to_MKID(f,ABCD_termination)
+
+
+S_filter = abcd2s(ABCD,Z0_thru)
+
+
+S31_absSq = np.abs(S_filter[0][1][0])**2
+S41_absSq = np.abs(S_filter[1][1][0])**2
+
+
 fig, ax =plt.subplots(figsize=(12,5),layout='constrained')
 
 ax.plot(f,10*np.log10(S11_absSq),label='S11')
 ax.plot(f,10*np.log10(S21_absSq),label='S21')
+ax.plot(f,10*np.log10(S31_absSq),label='S31')
+ax.plot(f,10*np.log10(S41_absSq),label='S41')
 
 ax.set_xlabel('frequency [GHz]')  # Add an x-label to the axes.
 ax.set_ylabel('S-params [dB]')  # Add a y-label to the axes.
