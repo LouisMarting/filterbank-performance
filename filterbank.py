@@ -15,6 +15,15 @@ c0 = 1/np.sqrt(eps0*mu0)
 
 
 
+def res_variance(f0,Ql,sigma_f0,sigma_Ql):
+    # Ql_threshold = Ql - 1.5 * Ql * sigma_Ql
+    df = f0 / Ql
+    
+    f0_var = np.random.normal(f0,df*sigma_f0)
+    Ql_var = np.random.normal(Ql,Ql*sigma_Ql)
+    return f0_var, Ql_var
+
+
 class TransmissionLine:
     def __init__(self,Z0,eps_eff,Qi=np.inf) -> None:
 
@@ -41,7 +50,6 @@ class TransmissionLine:
 
         ABCD = np.array([[A,B],[C,D]])
         return ABCD
-
 
 
 class Coupler:
@@ -105,19 +113,18 @@ class Coupler:
         return ABCD
         
 
-
 class Resonator:
-    def __init__(self, f0, Ql, TransmissionLine : TransmissionLine, Z_termination) -> None:
-        self.f0 = f0
-        self.Ql = Ql
+    def __init__(self, f0, Ql, TransmissionLine : TransmissionLine, Z_termination, sigma_f0=0, sigma_Ql=0) -> None:
+        self.f0, self.Ql = res_variance(f0,Ql,sigma_f0,sigma_Ql)
+        
         self.TransmissionLine = TransmissionLine
 
         assert len(np.atleast_1d(Z_termination)) < 3, "Z_termination has too many components (max 2 components)"
         self.Z_termination = np.atleast_1d(Z_termination)
 
-        self.Coupler1 = Coupler(f0=f0,Ql=Ql,Z_termination=[TransmissionLine.Z0, self.Z_termination[0]],Qi=TransmissionLine.Qi)
+        self.Coupler1 = Coupler(f0=self.f0,Ql=self.Ql,Z_termination=[TransmissionLine.Z0, self.Z_termination[0]],Qi=TransmissionLine.Qi)
 
-        self.Coupler2 = Coupler(f0=f0,Ql=Ql,Z_termination=[TransmissionLine.Z0, self.Z_termination[-1]],Qi=TransmissionLine.Qi)
+        self.Coupler2 = Coupler(f0=self.f0,Ql=self.Ql,Z_termination=[TransmissionLine.Z0, self.Z_termination[-1]],Qi=TransmissionLine.Qi)
 
         self.l_res = self.resonator_length()
 
@@ -149,15 +156,15 @@ class Resonator:
 
 
 class Reflector:
-    def __init__(self, f0, Ql, TransmissionLine : TransmissionLine, Z_termination) -> None:
-        self.f0 = f0
-        self.Ql = Ql
+    def __init__(self, f0, Ql, TransmissionLine : TransmissionLine, Z_termination, sigma_f0=0, sigma_Ql=0) -> None:
+        self.f0, self.Ql = res_variance(f0,Ql,sigma_f0,sigma_Ql)
+
         self.TransmissionLine = TransmissionLine
 
         assert len(np.atleast_1d(Z_termination)) < 2, "Z_termination has too many components (max 1 component)"
         self.Z_termination = np.atleast_1d(Z_termination)
 
-        self.Coupler = Coupler(f0=f0, Ql=Ql, Z_termination=[TransmissionLine.Z0, self.Z_termination[0]], Qi=TransmissionLine.Qi, res_length='quarterwave')
+        self.Coupler = Coupler(f0=self.f0, Ql=self.Ql, Z_termination=[TransmissionLine.Z0, self.Z_termination[0]], Qi=TransmissionLine.Qi, res_length='quarterwave')
 
         self.l_res = self.resonator_length()
 
@@ -187,7 +194,7 @@ class Reflector:
         return ABCD
 
         
-class BaseFilter():
+class BaseFilter:
     def __init__(self, f0, Ql, TransmissionLines : dict) -> None:
         self.f0 = f0
         self.Ql = Ql
@@ -228,22 +235,62 @@ class BaseFilter():
         pass
 
 
-
 class ManifoldFilter(BaseFilter):
-    def __init__(self, f0, Ql, TransmissionLines: dict) -> None:
+    def __init__(self, f0, Ql, TransmissionLines: dict, sigma_f0=0, sigma_Ql=0) -> None:
         super().__init__(f0, Ql, TransmissionLines)
+
+        self.Resonator = Resonator(
+            f0 = f0, 
+            Ql = Ql, 
+            TransmissionLine = self.TransmissionLine_resonator, 
+            Z_termination = [self.TransmissionLine_through.Z0/2, self.TransmissionLine_MKID.Z0], 
+            sigma_f0 = sigma_f0, 
+            sigma_Ql = sigma_Ql
+        )
+
+    def ABCD(self, f):
+        ABCD = abcd_shuntload(
+            Zin_from_abcd(self.Resonator.ABCD(f),self.TransmissionLine_MKID.Z0)
+        )
+        
+        return ABCD
+    
+    def ABCD_to_MKID(self, f, ABCD_to_termination):
+        ABCD_shunt_termination = self.ABCD_shunt_termination(f, ABCD_to_termination)
+
+        ABCD_to_MKID = chain(
+            ABCD_shunt_termination,
+            self.Resonator.ABCD(f)
+        )
+        
+        return (ABCD_to_MKID,)
 
 
 class ReflectorFilter(BaseFilter):
-    def __init__(self, f0, Ql, TransmissionLines: dict) -> None:
+    def __init__(self, f0, Ql, TransmissionLines: dict, sigma_f0=0, sigma_Ql=0) -> None:
         super().__init__(f0, Ql, TransmissionLines)
 
         self.lmda_quarter = self.TransmissionLine_through.wavelength(f0) / 4
         self.sep = self.lmda_quarter # quarter lambda is the standard BaseFilter separation
 
         # Impedance of resonator is equal to onesided connection, due to relfector creating an open condition
-        self.Resonator = Resonator(f0=f0, Ql=Ql, TransmissionLine=self.TransmissionLine_resonator, Z_termination=[self.TransmissionLine_through.Z0, self.TransmissionLine_MKID.Z0])
-        self.Reflector = Reflector(f0=f0, Ql=Ql, TransmissionLine=self.TransmissionLine_resonator, Z_termination=self.TransmissionLine_through.Z0/2)
+        self.Resonator = Resonator(
+            f0 = f0, 
+            Ql = Ql, 
+            TransmissionLine = self.TransmissionLine_resonator, 
+            Z_termination = [self.TransmissionLine_through.Z0, self.TransmissionLine_MKID.Z0], 
+            sigma_f0 = sigma_f0, 
+            sigma_Ql = sigma_Ql
+        )
+
+        self.Reflector = Reflector(
+            f0 = f0, 
+            Ql = Ql, 
+            TransmissionLine = self.TransmissionLine_resonator, 
+            Z_termination = self.TransmissionLine_through.Z0/2, 
+            sigma_f0 = sigma_f0, 
+            sigma_Ql = sigma_Ql
+        )
 
     def ABCD(self, f):
         ABCD = chain(
@@ -262,7 +309,7 @@ class ReflectorFilter(BaseFilter):
             self.Resonator.ABCD(f)
         )
         
-        return ABCD_to_MKID
+        return (ABCD_to_MKID,)
 
     def ABCD_shunt_termination(self, f, ABCD_to_termination):
         ABCD = abcd_shuntload(
@@ -277,16 +324,34 @@ class ReflectorFilter(BaseFilter):
             )
         )
 
+        return ABCD
+
+
 class DirectionalFilter(BaseFilter):
-    def __init__(self, f0, Ql, TransmissionLines : dict) -> None:
+    def __init__(self, f0, Ql, TransmissionLines : dict, sigma_f0=0, sigma_Ql=0) -> None:
         super().__init__(f0, Ql, TransmissionLines)
 
         self.lmda_quarter = self.TransmissionLine_through.wavelength(f0) / 4
         self.lmda_3quarter = self.TransmissionLine_MKID.wavelength(f0) * 3 / 4
         self.sep = self.lmda_quarter # quarter lambda is the standard BaseFilter separation
 
-        self.Resonator1 = Resonator(f0=f0, Ql=Ql, TransmissionLine=self.TransmissionLine_resonator, Z_termination=[self.TransmissionLine_through.Z0/2, self.TransmissionLine_MKID.Z0/2])
-        self.Resonator2 = Resonator(f0=f0, Ql=Ql, TransmissionLine=self.TransmissionLine_resonator, Z_termination=[self.TransmissionLine_through.Z0/2, self.TransmissionLine_MKID.Z0/2])
+        self.Resonator1 = Resonator(
+            f0 = f0, 
+            Ql = Ql, 
+            TransmissionLine = self.TransmissionLine_resonator, 
+            Z_termination = [self.TransmissionLine_through.Z0/2, self.TransmissionLine_MKID.Z0/2], 
+            sigma_f0 = sigma_f0, 
+            sigma_Ql = sigma_Ql
+        )
+
+        self.Resonator2 = Resonator(
+            f0 = f0, 
+            Ql = Ql, 
+            TransmissionLine = self.TransmissionLine_resonator, 
+            Z_termination = [self.TransmissionLine_through.Z0/2, self.TransmissionLine_MKID.Z0/2], 
+            sigma_f0 = sigma_f0, 
+            sigma_Ql = sigma_Ql
+        )
         
     
     def ABCD(self, f):
@@ -332,10 +397,6 @@ class DirectionalFilter(BaseFilter):
         return ABCDs
 
 
-
-
-
-
 class Filterbank:
     def __init__(self, FilterClass : BaseFilter, TransmissionLines : dict, f0_min, f0_max, Ql, oversampling=1, sigma_f0=0, sigma_Ql=0) -> None:
         self.FilterClass = FilterClass
@@ -359,7 +420,7 @@ class Filterbank:
 
         self.Filters = np.empty(self.n_filters,dtype=BaseFilter)
         for i in np.arange(self.n_filters):
-            self.Filters[i] = FilterClass(f0=self.f0[i], Ql=Ql, TransmissionLines = TransmissionLines)
+            self.Filters[i] = FilterClass(f0=self.f0[i], Ql=Ql, TransmissionLines = TransmissionLines, sigma_f0=sigma_f0, sigma_Ql=sigma_Ql)
     
     
     def S(self,f):
@@ -421,3 +482,6 @@ class Filterbank:
         S.insert(0, abcd2s(ABCD_preceding,Z0_thru))
         
         return S
+
+
+
