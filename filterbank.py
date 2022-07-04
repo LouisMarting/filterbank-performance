@@ -1,5 +1,5 @@
 import numpy as np
-import time
+
 
 # own functions
 from transformations import *
@@ -7,21 +7,13 @@ from transformations import abcd_seriesload
 from transformations import abcd_shuntload
 from transformations import y2abcd
 from transformations import abcd2s
+from utils import res_variance
 
 ### Physical constants ###
 mu0 = np.pi*4e-7
 eps0 = 8.854187817620e-12
 c0 = 1/np.sqrt(eps0*mu0)
 
-
-
-def res_variance(f0,Ql,sigma_f0,sigma_Ql):
-    # Ql_threshold = Ql - 1.5 * Ql * sigma_Ql
-    df = f0 / Ql
-    
-    f0_var = np.random.normal(f0,df*sigma_f0)
-    Ql_var = np.random.normal(Ql,Ql*sigma_Ql)
-    return f0_var, Ql_var
 
 
 class TransmissionLine:

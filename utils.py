@@ -9,8 +9,8 @@ def res_variance(f0,Ql,sigma_f0,sigma_Ql):
     return f0_var, Ql_var
 
 
-def sum_S31_S41(S,n_filters):
+def get_S11_S21_S31(S,n_filters):
     
 
 
-    return S
+    return S11_absSq,S21_absSq,S31_absSq

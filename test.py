@@ -10,11 +10,11 @@ from transformations import abcd_shuntload, chain,unchain,abcd2s
 
 
 nF = int(5e3)
-f = np.linspace(180,440,nF)
+f = np.linspace(80,440,nF)
 
-f0_min = 200
+f0_min = 100
 f0_max = 400
-Ql = 100
+Ql = 25
 
 Z0_res = 22.2
 eps_eff_res = 70.7
@@ -47,7 +47,7 @@ print(np.all(np.isclose(ABCD_unchained,ABCD_dir)))
 
 
 #=============================================
-var_settings = [(0,0), (0.1,0.05), (0.2,0.1), (0.3,0.3)]
+var_settings = [(0,0)]#[(0,0), (0.1,0.05), (0.2,0.1), (0.3,0.3)]
 for var_setting in var_settings:
     OmegaFilterbank = Filterbank(DirectionalFilter,TransmissionLines,f0_min=f0_min,f0_max=f0_max,Ql=Ql, sigma_f0=var_setting[0],sigma_Ql=var_setting[1])
 
@@ -65,14 +65,15 @@ for var_setting in var_settings:
         S31_absSq_list.append(S_filt1 + S_filt2)
 
     fig, ax =plt.subplots(figsize=(12,5),layout='constrained')
-    ax.plot(f,10*np.log10(S11_absSq),label='S11')
-    ax.plot(f,10*np.log10(S21_absSq),label='S21')
 
     cmap = mpl.cm.get_cmap('rainbow').copy()
     norm = mpl.colors.Normalize(vmin=0, vmax=np.shape(S31_absSq_list)[0])
 
     for i,S31_absSq in enumerate(S31_absSq_list):
         ax.plot(f,10*np.log10(S31_absSq),color=cmap(norm(i)))
+
+    ax.plot(f,10*np.log10(S11_absSq),label='S11',color=(0.,1.,1.))
+    ax.plot(f,10*np.log10(S21_absSq),label='S21',color=(1.,0.,1.))
 
     ax.set_xlabel('frequency [GHz]')  # Add an x-label to the axes.
     ax.set_ylabel('S-params [dB]')  # Add a y-label to the axes.
