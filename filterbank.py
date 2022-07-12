@@ -1,5 +1,6 @@
 import numpy as np
-
+import matplotlib as mpl
+from matplotlib import pyplot as plt
 
 # own functions
 from transformations import *
@@ -7,7 +8,7 @@ from transformations import abcd_seriesload
 from transformations import abcd_shuntload
 from transformations import y2abcd
 from transformations import abcd2s
-from utils import res_variance
+from utils import res_variance, ABCD_eye
 
 ### Physical constants ###
 mu0 = np.pi*4e-7
@@ -188,6 +189,9 @@ class Reflector:
         
 class BaseFilter:
     def __init__(self, f0, Ql, TransmissionLines : dict) -> None:
+        self.S_param = None
+        self.f = None
+
         self.f0 = f0
         self.Ql = Ql
 
@@ -225,6 +229,45 @@ class BaseFilter:
         ABCD_shunt_termination = self.ABCD_shunt_termination(f, ABCD_to_termination)
         # In childs: Add code to construct to MKID structure
         pass
+
+    def S(self,f):
+        if np.array_equal(self.f,f):
+            return self.S_param
+        else:
+            S = []
+            S.append(abcd2s(self.ABCD(f),self.TransmissionLine_through.Z0))
+
+            for ABCD_to_one_output in self.ABCD_to_MKID(f,ABCD_eye(f)):
+                S.append(abcd2s(ABCD_to_one_output,[self.TransmissionLine_through.Z0,self.TransmissionLine_MKID.Z0]))
+
+            self.S_param = S
+            self.f = f
+            return self.S_param
+    
+    def plot(self):
+        try:
+            S11_absSq = np.abs(self.S_param[0][0][0])**2
+            S21_absSq = np.abs(self.S_param[0][1][0])**2
+            S31_absSq = np.zeros(np.size(S11_absSq))
+            for i in np.arange(1,np.shape(self.S_param)[0]):
+                S31_absSq += np.abs(self.S_param[i][1][0])**2
+
+            fig, ax =plt.subplots(figsize=(8,6),layout='constrained')
+
+            ax.plot(self.f/1e9,10*np.log10(S31_absSq),label='S31',color=(0.,0.,0.))
+            ax.plot(self.f/1e9,10*np.log10(S11_absSq),label='S11',color=(0.,1.,1.))
+            ax.plot(self.f/1e9,10*np.log10(S21_absSq),label='S21',color=(1.,0.,1.))
+
+            ax.set_xlabel('frequency [GHz]')  # Add an x-label to the axes.
+            ax.set_ylabel('S-params [dB]')  # Add a y-label to the axes.
+            ax.set_title("Filter response")  # Add a title to the axes.
+            ax.legend();  # Add a legend.
+            plt.ylim(-30,0)
+            plt.xlim(self.f0-2*self.f0/self.Ql,self.f0+2*self.f0/self.Ql)
+            plt.show()
+        except TypeError:
+            print("Check type of self.S_param, make sure self.S() has been run")
+        
 
 
 class ManifoldFilter(BaseFilter):
@@ -391,6 +434,8 @@ class DirectionalFilter(BaseFilter):
 
 class Filterbank:
     def __init__(self, FilterClass : BaseFilter, TransmissionLines : dict, f0_min, f0_max, Ql, oversampling=1, sigma_f0=0, sigma_Ql=0) -> None:
+        self.S_param = None
+        self.f = None
         self.FilterClass = FilterClass
         self.TransmissionLines = TransmissionLines
         self.f0_min = f0_min
@@ -416,64 +461,108 @@ class Filterbank:
     
     
     def S(self,f):
-        Z0_thru = self.TransmissionLines['through'].Z0
-        Z0_mkid = self.TransmissionLines['MKID'].Z0
-        
-        ABCD_preceding = np.repeat(np.identity(2)[:,:,np.newaxis],len(f),axis=-1)
-        ABCD_succeeding = np.repeat(np.identity(2)[:,:,np.newaxis],len(f),axis=-1)
+        if np.array_equal(self.f,f):
+            return self.S_param
 
-        ABCD_list = np.empty((2,2,len(f),self.n_filters),dtype=np.cfloat)
-        ABCD_sep_list = np.empty((2,2,len(f),self.n_filters),dtype=np.cfloat)
-        
+        else:
+            Z0_thru = self.TransmissionLines['through'].Z0
+            Z0_mkid = self.TransmissionLines['MKID'].Z0
+            
+            ABCD_preceding = np.repeat(np.identity(2)[:,:,np.newaxis],len(f),axis=-1)
+            ABCD_succeeding = np.repeat(np.identity(2)[:,:,np.newaxis],len(f),axis=-1)
 
-        # Calculate a full filterbank chain
-        for i, Filter in enumerate(self.Filters):
-            Filter : BaseFilter # set the expected datatype of Filter
+            ABCD_list = np.empty((2,2,len(f),self.n_filters),dtype=np.cfloat)
+            ABCD_sep_list = np.empty((2,2,len(f),self.n_filters),dtype=np.cfloat)
             
 
-            # Eventually, these indexed lists could be replaced by cached versions.
-            ABCD_list[:,:,:,i] = Filter.ABCD(f)
-            ABCD_sep_list[:,:,:,i] = Filter.ABCD_sep(f)
+            # Calculate a full filterbank chain
+            for i, Filter in enumerate(self.Filters):
+                Filter : BaseFilter # set the expected datatype of Filter
+                
 
-            ABCD_succeeding = chain(
-                ABCD_succeeding,
-                ABCD_list[:,:,:,i],
-                ABCD_sep_list[:,:,:,i] # Can we use np.insert() for these and do this calc faster outside of this for loop?
-            )
-        
-        
-        S = []
+                # Eventually, these indexed lists could be replaced by cached versions.
+                ABCD_list[:,:,:,i] = Filter.ABCD(f)
+                ABCD_sep_list[:,:,:,i] = Filter.ABCD_sep(f)
 
-        for i,Filter in enumerate(self.Filters):
-            Filter : BaseFilter # set the expected datatype of Filter
+                ABCD_succeeding = chain(
+                    ABCD_succeeding,
+                    ABCD_list[:,:,:,i],
+                    ABCD_sep_list[:,:,:,i] # Can we use np.insert() for these and do this calc faster outside of this for loop?
+                )
             
-            # Remove the ith filter from the succeeding filters
-            ABCD_succeeding = unchain(
-                ABCD_succeeding,
-                ABCD_list[:,:,:,i],
-                ABCD_sep_list[:,:,:,i]
-            )
+            
+            S = []
 
-            # Calculate the equivalent ABCD to the ith detector
-            ABCD_to_MKID = Filter.ABCD_to_MKID(f,ABCD_succeeding)
-
-            for ABCD_to_one_output in ABCD_to_MKID:
-                ABCD_through_filter = chain(
-                    ABCD_preceding,
-                    ABCD_to_one_output
+            for i,Filter in enumerate(self.Filters):
+                Filter : BaseFilter # set the expected datatype of Filter
+                
+                # Remove the ith filter from the succeeding filters
+                ABCD_succeeding = unchain(
+                    ABCD_succeeding,
+                    ABCD_list[:,:,:,i],
+                    ABCD_sep_list[:,:,:,i]
                 )
 
-                S.append(abcd2s(ABCD_through_filter,[Z0_thru,Z0_mkid]))
+                # Calculate the equivalent ABCD to the ith detector
+                ABCD_to_MKID = Filter.ABCD_to_MKID(f,ABCD_succeeding)
+
+                for ABCD_to_one_output in ABCD_to_MKID:
+                    ABCD_through_filter = chain(
+                        ABCD_preceding,
+                        ABCD_to_one_output
+                    )
+
+                    S.append(abcd2s(ABCD_through_filter,[Z0_thru,Z0_mkid]))
+                
+                ABCD_preceding = chain(
+                    ABCD_preceding,
+                    ABCD_list[:,:,:,i],
+                    ABCD_sep_list[:,:,:,i]
+                )
             
-            ABCD_preceding = chain(
-                ABCD_preceding,
-                ABCD_list[:,:,:,i],
-                ABCD_sep_list[:,:,:,i]
-            )
-        
-        S.insert(0, abcd2s(ABCD_preceding,Z0_thru))
-        
-        return S
+            S.insert(0, abcd2s(ABCD_preceding,Z0_thru))
+
+            self.S_param = S
+            self.f = f
+            return self.S_param
+    
+    def plot(self):
+        try:
+            S11_absSq = np.abs(self.S_param[0][0][0])**2
+            S21_absSq = np.abs(self.S_param[0][1][0])**2
+            S31_absSq_list = []
+            
+            if np.shape(self.S_param)[0]//self.n_filters == 2:
+                for i in np.arange(1,np.shape(self.S_param)[0],2):
+                    S_filt1 = np.abs(self.S_param[i][1][0])**2
+                    S_filt2 = np.abs(self.S_param[i+1][1][0])**2
+                    
+                    S31_absSq_list.append(S_filt1 + S_filt2)
+            else:
+                for i in np.arange(1,np.shape(self.S_param)[0],1):
+                    S31_absSq = np.abs(self.S_param[i][1][0])**2
+
+                    S31_absSq_list.append(S31_absSq)
+
+            fig, ax =plt.subplots(figsize=(12,5),layout='constrained')
+
+            cmap = mpl.cm.get_cmap('rainbow').copy()
+            norm = mpl.colors.Normalize(vmin=0, vmax=np.shape(S31_absSq_list)[0])
+
+            for i,S31_absSq in enumerate(S31_absSq_list):
+                ax.plot(self.f/1e9,10*np.log10(S31_absSq),color=cmap(norm(i)))
+
+            ax.plot(self.f/1e9,10*np.log10(S11_absSq),label='S11',color=(0.,1.,1.))
+            ax.plot(self.f/1e9,10*np.log10(S21_absSq),label='S21',color=(1.,0.,1.))
+
+            ax.set_xlabel('frequency [GHz]')  # Add an x-label to the axes.
+            ax.set_ylabel('S-params [dB]')  # Add a y-label to the axes.
+            ax.set_title("Filter response")  # Add a title to the axes.
+            ax.legend();  # Add a legend.
+            plt.ylim(-30,0)
+            plt.show()
+        except TypeError:
+            print("Check type of self.S_param, make sure self.S() has been run")
 
 
 

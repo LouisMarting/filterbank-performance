@@ -10,10 +10,10 @@ from transformations import abcd_shuntload, chain,unchain,abcd2s
 
 
 nF = int(5e3)
-f = np.linspace(80,440,nF)
+f = np.linspace(80e9,440e9,nF)
 
-f0_min = 100
-f0_max = 400
+f0_min = 100e9
+f0_max = 400e9
 Ql = 25
 
 Z0_res = 22.2
@@ -70,10 +70,10 @@ for var_setting in var_settings:
     norm = mpl.colors.Normalize(vmin=0, vmax=np.shape(S31_absSq_list)[0])
 
     for i,S31_absSq in enumerate(S31_absSq_list):
-        ax.plot(f,10*np.log10(S31_absSq),color=cmap(norm(i)))
+        ax.plot(f/1e9,10*np.log10(S31_absSq),color=cmap(norm(i)))
 
-    ax.plot(f,10*np.log10(S11_absSq),label='S11',color=(0.,1.,1.))
-    ax.plot(f,10*np.log10(S21_absSq),label='S21',color=(1.,0.,1.))
+    ax.plot(f/1e9,10*np.log10(S11_absSq),label='S11',color=(0.,1.,1.))
+    ax.plot(f/1e9,10*np.log10(S21_absSq),label='S21',color=(1.,0.,1.))
 
     ax.set_xlabel('frequency [GHz]')  # Add an x-label to the axes.
     ax.set_ylabel('S-params [dB]')  # Add a y-label to the axes.
@@ -82,7 +82,8 @@ for var_setting in var_settings:
     plt.ylim(-30,0)
     plt.show()
 
-
+OmegaFilterbank.Filters[0].S(f)
+OmegaFilterbank.Filters[0].plot()
 
 # #===================================================================
 # GammaFilterbank = Filterbank(ReflectorFilter,TransmissionLines,f0_min=f0_min,f0_max=f0_max,Ql=Ql)
