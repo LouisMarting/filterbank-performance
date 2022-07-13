@@ -249,24 +249,26 @@ class BaseFilter:
             S11_absSq = np.abs(self.S_param[0][0][0])**2
             S21_absSq = np.abs(self.S_param[0][1][0])**2
             S31_absSq = np.zeros(np.size(S11_absSq))
-            for i in np.arange(1,np.shape(self.S_param)[0]):
-                S31_absSq += np.abs(self.S_param[i][1][0])**2
-
-            fig, ax =plt.subplots(figsize=(8,6),layout='constrained')
-
-            ax.plot(self.f/1e9,10*np.log10(S31_absSq),label='S31',color=(0.,0.,0.))
-            ax.plot(self.f/1e9,10*np.log10(S11_absSq),label='S11',color=(0.,1.,1.))
-            ax.plot(self.f/1e9,10*np.log10(S21_absSq),label='S21',color=(1.,0.,1.))
-
-            ax.set_xlabel('frequency [GHz]')  # Add an x-label to the axes.
-            ax.set_ylabel('S-params [dB]')  # Add a y-label to the axes.
-            ax.set_title("Filter response")  # Add a title to the axes.
-            ax.legend();  # Add a legend.
-            plt.ylim(-30,0)
-            plt.xlim(self.f0-2*self.f0/self.Ql,self.f0+2*self.f0/self.Ql)
-            plt.show()
         except TypeError:
             print("Check type of self.S_param, make sure self.S() has been run")
+
+        for i in np.arange(1,np.shape(self.S_param)[0]):
+            S31_absSq += np.abs(self.S_param[i][1][0])**2
+
+        fig, ax =plt.subplots(figsize=(8,6),layout='constrained')
+
+        ax.plot(self.f/1e9,10*np.log10(S31_absSq),label='S31',color=(0.,0.,0.))
+        ax.plot(self.f/1e9,10*np.log10(S11_absSq),label='S11',color=(0.,1.,1.))
+        ax.plot(self.f/1e9,10*np.log10(S21_absSq),label='S21',color=(1.,0.,1.))
+
+        ax.set_xlabel('frequency [GHz]')  # Add an x-label to the axes.
+        ax.set_ylabel('S-params [dB]')  # Add a y-label to the axes.
+        ax.set_title("Filter response")  # Add a title to the axes.
+        ax.legend();  # Add a legend.
+        plt.ylim(-30,0)
+        plt.xlim((self.f0-2*self.f0/self.Ql)/1e9,(self.f0+2*self.f0/self.Ql)/1e9)
+        plt.show()
+        
         
 
 
