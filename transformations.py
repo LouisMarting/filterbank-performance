@@ -1,4 +1,3 @@
-from os import remove
 import numpy as np
 
 

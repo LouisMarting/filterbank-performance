@@ -1,6 +1,8 @@
 import numpy as np
 import matplotlib as mpl
 from matplotlib import pyplot as plt
+from matplotlib import cm
+import matplotlib.font_manager as font_manager
 
 # own functions
 from transformations import *
@@ -10,10 +12,21 @@ from transformations import y2abcd
 from transformations import abcd2s
 from utils import res_variance, ABCD_eye
 
+# Edit the font, font size, and axes width
+path = '.\cmunrm.ttf'
+font_manager.FontManager().addfont(path)
+font_properties = font_manager.FontProperties(fname=path)
+mpl.rcParams['font.sans-serif'] = font_properties.get_name()
+mpl.rcParams['font.size'] = 18
+mpl.rcParams['axes.linewidth'] = 2
+
+
+
 ### Physical constants ###
 mu0 = np.pi*4e-7
 eps0 = 8.854187817620e-12
 c0 = 1/np.sqrt(eps0*mu0)
+
 
 
 
@@ -191,6 +204,9 @@ class BaseFilter:
     def __init__(self, f0, Ql, TransmissionLines : dict) -> None:
         self.S_param = None
         self.f = None
+        self.S11_absSq = None
+        self.S21_absSq = None
+        self.S31_absSq = None
 
         self.f0 = f0
         self.Ql = Ql
@@ -242,24 +258,23 @@ class BaseFilter:
 
             self.S_param = S
             self.f = f
+
+
+            self.S11_absSq = np.abs(self.S_param[0][0][0])**2
+            self.S21_absSq = np.abs(self.S_param[0][1][0])**2
+            self.S31_absSq = np.zeros(np.size(self.S11_absSq))
+
+            for i in np.arange(1,np.shape(self.S_param)[0]):
+                self.S31_absSq += np.abs(self.S_param[i][1][0])**2
+
             return self.S_param
     
     def plot(self):
-        try:
-            S11_absSq = np.abs(self.S_param[0][0][0])**2
-            S21_absSq = np.abs(self.S_param[0][1][0])**2
-            S31_absSq = np.zeros(np.size(S11_absSq))
-        except TypeError:
-            print("Check type of self.S_param, make sure self.S() has been run")
-
-        for i in np.arange(1,np.shape(self.S_param)[0]):
-            S31_absSq += np.abs(self.S_param[i][1][0])**2
-
         fig, ax =plt.subplots(figsize=(8,6),layout='constrained')
 
-        ax.plot(self.f/1e9,10*np.log10(S31_absSq),label='S31',color=(0.,0.,0.))
-        ax.plot(self.f/1e9,10*np.log10(S11_absSq),label='S11',color=(0.,1.,1.))
-        ax.plot(self.f/1e9,10*np.log10(S21_absSq),label='S21',color=(1.,0.,1.))
+        ax.plot(self.f/1e9,10*np.log10(self.S31_absSq),label='S31',color=(0.,0.,0.))
+        ax.plot(self.f/1e9,10*np.log10(self.S11_absSq),label='S11',color=(0.,1.,1.))
+        ax.plot(self.f/1e9,10*np.log10(self.S21_absSq),label='S21',color=(1.,0.,1.))
 
         ax.set_xlabel('frequency [GHz]')  # Add an x-label to the axes.
         ax.set_ylabel('S-params [dB]')  # Add a y-label to the axes.
@@ -438,6 +453,11 @@ class Filterbank:
     def __init__(self, FilterClass : BaseFilter, TransmissionLines : dict, f0_min, f0_max, Ql, oversampling=1, sigma_f0=0, sigma_Ql=0) -> None:
         self.S_param = None
         self.f = None
+        self.S11_absSq = None
+        self.S21_absSq = None
+        self.S31_absSq_list = None
+
+
         self.FilterClass = FilterClass
         self.TransmissionLines = TransmissionLines
         self.f0_min = f0_min
@@ -526,45 +546,52 @@ class Filterbank:
 
             self.S_param = S
             self.f = f
-            return self.S_param
-    
-    def plot(self):
-        try:
-            S11_absSq = np.abs(self.S_param[0][0][0])**2
-            S21_absSq = np.abs(self.S_param[0][1][0])**2
-            S31_absSq_list = []
+
+            self.S11_absSq = np.abs(self.S_param[0][0][0])**2
+            self.S21_absSq = np.abs(self.S_param[0][1][0])**2
+            self.S31_absSq_list = []
             
             if np.shape(self.S_param)[0]//self.n_filters == 2:
                 for i in np.arange(1,np.shape(self.S_param)[0],2):
                     S_filt1 = np.abs(self.S_param[i][1][0])**2
                     S_filt2 = np.abs(self.S_param[i+1][1][0])**2
                     
-                    S31_absSq_list.append(S_filt1 + S_filt2)
+                    self.S31_absSq_list.append(S_filt1 + S_filt2)
             else:
                 for i in np.arange(1,np.shape(self.S_param)[0],1):
                     S31_absSq = np.abs(self.S_param[i][1][0])**2
 
-                    S31_absSq_list.append(S31_absSq)
+                    self.S31_absSq_list.append(S31_absSq)
 
-            fig, ax =plt.subplots(figsize=(12,5),layout='constrained')
 
-            cmap = mpl.cm.get_cmap('rainbow').copy()
-            norm = mpl.colors.Normalize(vmin=0, vmax=np.shape(S31_absSq_list)[0])
+            return self.S_param
+    
+    def plot(self):
+        assert self.S_param is not None
+        fig, ax =plt.subplots(figsize=(12,5),layout='constrained')
 
-            for i,S31_absSq in enumerate(S31_absSq_list):
-                ax.plot(self.f/1e9,10*np.log10(S31_absSq),color=cmap(norm(i)))
+        cmap = cm.get_cmap('rainbow').copy()
+        norm = mpl.colors.Normalize(vmin=0, vmax=np.shape(self.S31_absSq_list)[0])
 
-            ax.plot(self.f/1e9,10*np.log10(S11_absSq),label='S11',color=(0.,1.,1.))
-            ax.plot(self.f/1e9,10*np.log10(S21_absSq),label='S21',color=(1.,0.,1.))
+        for i,S31_absSq in enumerate(self.S31_absSq_list):
+            ax.plot(self.f/1e9,10*np.log10(S31_absSq),color=cmap(norm(i)))
 
-            ax.set_xlabel('frequency [GHz]')  # Add an x-label to the axes.
-            ax.set_ylabel('S-params [dB]')  # Add a y-label to the axes.
-            ax.set_title("Filter response")  # Add a title to the axes.
-            ax.legend();  # Add a legend.
-            plt.ylim(-30,0)
-            plt.show()
-        except TypeError:
-            print("Check type of self.S_param, make sure self.S() has been run")
+        ax.plot(self.f/1e9,10*np.log10(self.S11_absSq),label='S11',color=(0.,1.,1.))
+        ax.plot(self.f/1e9,10*np.log10(self.S21_absSq),label='S21',color=(1.,0.,1.))
 
+        ax.set_xlabel('frequency [GHz]')  # Add an x-label to the axes.
+        ax.set_ylabel('S-params [dB]')  # Add a y-label to the axes.
+        ax.set_title("Filter response")  # Add a title to the axes.
+        ax.legend();  # Add a legend.
+        plt.ylim(-30,0)
+        plt.show()
+
+    def Q_realized(self):
+        pass
+
+    def f0_realized(self):
+        pass
+
+    
 
 

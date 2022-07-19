@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib as mpl
 from matplotlib import pyplot as plt
+from matplotlib import cm
 plt.ioff()
 
 from filterbank import Resonator,TransmissionLine,DirectionalFilter,ReflectorFilter,ManifoldFilter,Filterbank,BaseFilter
@@ -66,7 +67,7 @@ for var_setting in var_settings:
 
     fig, ax =plt.subplots(figsize=(12,5),layout='constrained')
 
-    cmap = mpl.cm.get_cmap('rainbow').copy()
+    cmap = cm.get_cmap('rainbow').copy()
     norm = mpl.colors.Normalize(vmin=0, vmax=np.shape(S31_absSq_list)[0])
 
     for i,S31_absSq in enumerate(S31_absSq_list):
@@ -77,7 +78,7 @@ for var_setting in var_settings:
 
     ax.set_xlabel('frequency [GHz]')  # Add an x-label to the axes.
     ax.set_ylabel('S-params [dB]')  # Add a y-label to the axes.
-    ax.set_title("Filterbank")  # Add a title to the axes.
+    ax.set_title("Filterbank - Test")  # Add a title to the axes.
     ax.legend();  # Add a legend.
     plt.ylim(-30,0)
     plt.show()
@@ -104,7 +105,7 @@ OmegaFilterbank.Filters[0].plot()
 # ax.plot(f,10*np.log10(S11_absSq),label='S11')
 # ax.plot(f,10*np.log10(S21_absSq),label='S21')
 
-# cmap = mpl.cm.get_cmap('rainbow').copy()
+# cmap = cm.get_cmap('rainbow').copy()
 # norm = mpl.colors.Normalize(vmin=0, vmax=np.shape(S31_absSq_list)[0])
 
 # for i,S31_absSq in enumerate(S31_absSq_list):
@@ -136,7 +137,7 @@ OmegaFilterbank.Filters[0].plot()
 # ax.plot(f,10*np.log10(S11_absSq),label='S11')
 # ax.plot(f,10*np.log10(S21_absSq),label='S21')
 
-# cmap = mpl.cm.get_cmap('rainbow').copy()
+# cmap = cm.get_cmap('rainbow').copy()
 # norm = mpl.colors.Normalize(vmin=0, vmax=np.shape(S31_absSq_list)[0])
 
 # for i,S31_absSq in enumerate(S31_absSq_list):
