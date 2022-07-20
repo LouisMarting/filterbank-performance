@@ -1,4 +1,6 @@
 import numpy as np
+import numpy.ma as ma
+from scipy.signal import find_peaks
 import matplotlib as mpl
 from matplotlib import pyplot as plt
 from matplotlib import cm
@@ -13,12 +15,12 @@ from transformations import abcd2s
 from utils import res_variance, ABCD_eye
 
 # Edit the font, font size, and axes width
-path = '.\cmunrm.ttf'
-font_manager.FontManager().addfont(path)
-font_properties = font_manager.FontProperties(fname=path)
-mpl.rcParams['font.sans-serif'] = font_properties.get_name()
+# path = '.\cmunrm.ttf'
+# font_manager.FontManager().addfont(path)
+# font_properties = font_manager.FontProperties(fname=path)
+# mpl.rcParams['font.sans-serif'] = font_properties.get_name()
 mpl.rcParams['font.size'] = 18
-mpl.rcParams['axes.linewidth'] = 2
+mpl.rcParams['axes.linewidth'] = 1
 
 
 
@@ -208,6 +210,9 @@ class BaseFilter:
         self.S21_absSq = None
         self.S31_absSq = None
 
+        self.Ql_realized = None
+        self.f0_realized = None
+
         self.f0 = f0
         self.Ql = Ql
 
@@ -284,7 +289,12 @@ class BaseFilter:
         plt.xlim((self.f0-2*self.f0/self.Ql)/1e9,(self.f0+2*self.f0/self.Ql)/1e9)
         plt.show()
         
-        
+    def find_realized_parameters(self,n_interp=20):
+        assert self.S_param is not None
+
+
+
+        return self.Ql_realized, self.f0_realized
 
 
 class ManifoldFilter(BaseFilter):
@@ -457,6 +467,8 @@ class Filterbank:
         self.S21_absSq = None
         self.S31_absSq_list = None
 
+        self.f0_realized = None
+        self.Ql_realized = None
 
         self.FilterClass = FilterClass
         self.TransmissionLines = TransmissionLines
@@ -586,12 +598,44 @@ class Filterbank:
         plt.ylim(-30,0)
         plt.show()
 
-    def Q_realized(self):
-        pass
+    def find_realized_parameters(self,n_interp=20):
+        assert self.S_param is not None
+        df = self.f[1] - self.f[0]
+        fq = np.linspace(self.f[0],self.f[-1],n_interp*len(self.f))
+        self.f0_realized = np.zeros(self.n_filters)
+        self.Ql_realized = np.zeros(self.n_filters)
 
-    def f0_realized(self):
-        pass
+        for i,Filter in enumerate(self.Filters):
+            S31_absSq_q = np.interp(fq,self.f,self.S31_absSq_list[i])
 
+            peaks = find_peaks(S31_absSq_q,height=0.5*max(S31_absSq_q))
+
+
+            # f0, as realized in the filterbank
+            self.f0_realized[i] = fq[peaks[0]]
+
+            # Find FWHM manually:
+            HalfMaximum = S31_absSq_q[peaks[0]] / 2
+            diff_from_HalfMaximum = np.abs(S31_absSq_q-HalfMaximum)
+
+            # search window = +/- a number of filter widths
+            search_range = [self.f0_realized[i]-3*self.f0[i]/self.Ql, self.f0_realized[i]+3*self.f0[i]/self.Ql]
+            
+            search_window = np.logical_and(fq > search_range[0],fq < self.f0_realized[i])
+            nearest_lower = ma.masked_array(diff_from_HalfMaximum,mask=~search_window).argmin()
+
+            search_window = np.logical_and(fq > self.f0_realized[i],fq < search_range[-1])
+            nearest_higher = ma.masked_array(diff_from_HalfMaximum,mask=~search_window).argmin()
+
+            fwhm = fq[nearest_higher] - fq[nearest_lower]
+
+            self.Ql_realized[i] = self.f0_realized[i] / fwhm
+
+
+
+        return self.f0_realized, self.Ql_realized
+
+        
     
 
 
