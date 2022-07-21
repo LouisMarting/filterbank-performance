@@ -7,6 +7,7 @@ plt.ioff()
 from filterbank import Resonator,TransmissionLine,DirectionalFilter,ReflectorFilter,ManifoldFilter,Filterbank,BaseFilter
 from transformations import *
 from transformations import abcd_shuntload, chain,unchain,abcd2s
+from analysis import *
 
 
 
@@ -48,12 +49,13 @@ print(np.all(np.isclose(ABCD_unchained,ABCD_dir)))
 
 
 #=============================================
-var_settings = [(0,0)]#[(0,0), (0.1,0.05), (0.2,0.1), (0.3,0.3)]
+var_settings = [(0.2,0.1)]#[(0,0), (0.1,0.05), (0.2,0.1), (0.3,0.3)]
 for var_setting in var_settings:
     OmegaFilterbank = Filterbank(DirectionalFilter,TransmissionLines,f0_min=f0_min,f0_max=f0_max,Ql=Ql, sigma_f0=var_setting[0],sigma_Ql=var_setting[1])
 
-    S = OmegaFilterbank.S(f)
-    OmegaFilterbank.plot()
+    analyse(OmegaFilterbank,f,n_filterbanks=5)
+    # S = OmegaFilterbank.S(f)
+    # OmegaFilterbank.plot()
 
 
     # S11_absSq = np.abs(S[0][0][0])**2
@@ -87,43 +89,48 @@ for var_setting in var_settings:
 OmegaFilterbank.Filters[0].S(f)
 OmegaFilterbank.Filters[0].plot()
 
-f0_realized,Ql_realized = OmegaFilterbank.find_realized_parameters()
-
-fig, ax =plt.subplots(figsize=(8,6),layout='constrained')
-
-ax.scatter(f0_realized/1e9,Ql_realized,color=(0.,0.,0.))
-
-ax.set_xlabel('frequency [GHz]')  # Add an x-label to the axes.
-ax.set_ylabel('realized Ql')  # Add a y-label to the axes.
-ax.set_title("Realized filter parameters")  # Add a title to the axes.
-# ax.legend();  # Add a legend.
-# plt.ylim(-30,0)
-# plt.xlim((self.f0-2*self.f0/self.Ql)/1e9,(self.f0+2*self.f0/self.Ql)/1e9)
-plt.show()
 
 
-f0 = OmegaFilterbank.f0
 
-df_variance = Ql * (f0_realized - f0) / f0
-Ql_variance = Ql_realized / Ql
 
-fig, (ax1, ax2) =plt.subplots(1,2,figsize=(16,6),layout='constrained')
 
-ax1.hist(df_variance,bins=30)
+# f0_realized,Ql_realized = OmegaFilterbank.realized_parameters()
 
-ax1.set_xlabel('frequency [GHz]')  # Add an x-label to the axes.
-ax1.set_title("Realized filter parameters")  # Add a title to the axes.
-# ax.legend();  # Add a legend.
+# fig, ax =plt.subplots(figsize=(8,6),layout='constrained')
 
-ax2.hist(Ql_variance,bins=30)
+# ax.scatter(f0_realized/1e9,Ql_realized,color=(0.,0.,0.))
 
-ax2.set_xlabel('realized Ql')  # Add an x-label to the axes.
-ax2.set_title("Realized filter parameters")  # Add a title to the axes.
-# ax.legend();  # Add a legend.
+# ax.set_xlabel('frequency [GHz]')  # Add an x-label to the axes.
+# ax.set_ylabel('realized Ql')  # Add a y-label to the axes.
+# ax.set_title("Realized filter parameters")  # Add a title to the axes.
+# # ax.legend();  # Add a legend.
+# # plt.ylim(-30,0)
+# # plt.xlim((self.f0-2*self.f0/self.Ql)/1e9,(self.f0+2*self.f0/self.Ql)/1e9)
+# plt.show()
 
-# plt.ylim(-30,0)
-# plt.xlim((self.f0-2*self.f0/self.Ql)/1e9,(self.f0+2*self.f0/self.Ql)/1e9)
-plt.show()
+
+# f0 = OmegaFilterbank.f0
+
+# df_variance = Ql * (f0_realized - f0) / f0
+# Ql_variance = Ql_realized / Ql
+
+# fig, (ax1, ax2) =plt.subplots(1,2,figsize=(16,6),layout='constrained')
+
+# ax1.hist(df_variance,bins=30)
+
+# ax1.set_xlabel('frequency [GHz]')  # Add an x-label to the axes.
+# ax1.set_title("Realized filter parameters")  # Add a title to the axes.
+
+
+# ax2.hist(Ql_variance,bins=30)
+
+# ax2.set_xlabel('realized Ql')  # Add an x-label to the axes.
+# ax2.set_title("Realized filter parameters")  # Add a title to the axes.
+
+
+# # plt.ylim(-30,0)
+# # plt.xlim((self.f0-2*self.f0/self.Ql)/1e9,(self.f0+2*self.f0/self.Ql)/1e9)
+# plt.show()
 
 
 

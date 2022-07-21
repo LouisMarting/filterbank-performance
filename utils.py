@@ -12,8 +12,4 @@ def res_variance(f0,Ql,sigma_f0,sigma_Ql):
 def ABCD_eye(f):
     return np.repeat(np.identity(2)[:,:,np.newaxis],len(f),axis=-1)
 
-# def get_S11_S21_S31(S,n_filters):
-    
 
-
-#     return S11_absSq,S21_absSq,S31_absSq
