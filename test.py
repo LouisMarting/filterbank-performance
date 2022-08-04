@@ -12,7 +12,7 @@ from analysis import *
 
 
 nF = int(5e3)
-f = np.linspace(80e9,440e9,nF)
+f = np.linspace(180e9,440e9,nF)
 
 f0_min = 200e9
 f0_max = 400e9
@@ -53,9 +53,9 @@ var_settings = [(0.2,0.1)]#[(0,0), (0.1,0.05), (0.2,0.1), (0.3,0.3)]
 for var_setting in var_settings:
     OmegaFilterbank = Filterbank(DirectionalFilter,TransmissionLines,f0_min=f0_min,f0_max=f0_max,Ql=Ql, sigma_f0=var_setting[0],sigma_Ql=var_setting[1])
 
-    analyse(OmegaFilterbank,f,n_filterbanks=5)
-    # S = OmegaFilterbank.S(f)
     # OmegaFilterbank.plot()
+    analyse(OmegaFilterbank,f,n_filterbanks=5)
+    
 
 
     # S11_absSq = np.abs(S[0][0][0])**2

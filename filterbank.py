@@ -25,11 +25,19 @@ mpl.rcParams['axes.unicode_minus'] = False
 # uncomment when rendering for thesis
 # mpl.rcParams['text.usetex'] = True
 
+# Font sizes for plot
+mpl.rcParams['font.size'] = 11
+mpl.rcParams['axes.titlesize'] = 12
+mpl.rcParams['axes.labelsize'] = 10
+mpl.rcParams['xtick.labelsize'] = 8
+mpl.rcParams['ytick.labelsize'] = 8
+mpl.rcParams['legend.fontsize'] = 8
+mpl.rcParams['figure.titlesize'] = 12
 
-mpl.rcParams['font.size'] = 18
-mpl.rcParams['axes.linewidth'] = 1
-
-
+mpl.rcParams['axes.linewidth'] = 0.75
+mpl.rcParams['figure.figsize'] = [2.5,2.5]
+mpl.rcParams['figure.dpi'] = 200
+mpl.rcParams["savefig.dpi"] = 400
 
 ### Physical constants ###
 mu0 = np.pi*4e-7
@@ -282,7 +290,8 @@ class BaseFilter:
             return self.S_param
     
     def plot(self):
-        fig, ax =plt.subplots(figsize=(8,6),layout='constrained')
+        assert self.S_param is not None
+        fig, ax =plt.subplots(layout='constrained')
 
         ax.plot(self.f/1e9,10*np.log10(self.S31_absSq),label='S31',color=(0.,0.,0.))
         ax.plot(self.f/1e9,10*np.log10(self.S11_absSq),label='S11',color=(0.,1.,1.))
@@ -294,7 +303,7 @@ class BaseFilter:
         ax.legend();  # Add a legend.
         plt.ylim(-30,0)
         plt.xlim((self.f0-2*self.f0/self.Ql)/1e9,(self.f0+2*self.f0/self.Ql)/1e9)
-        plt.show()
+        # plt.show()
         
     def realized_parameters(self,n_interp=20):
         assert self.S_param is not None
@@ -614,7 +623,7 @@ class Filterbank:
     
     def plot(self):
         assert self.S_param is not None
-        fig, ax =plt.subplots(figsize=(12,5),layout='constrained')
+        fig, ax =plt.subplots(figsize=(6,2),layout='constrained')
 
         cmap = cm.get_cmap('rainbow').copy()
         norm = mpl.colors.Normalize(vmin=0, vmax=np.shape(self.S31_absSq_list)[0])
@@ -625,12 +634,16 @@ class Filterbank:
         ax.plot(self.f/1e9,10*np.log10(self.S11_absSq),label='S11',color=(0.,1.,1.))
         ax.plot(self.f/1e9,10*np.log10(self.S21_absSq),label='S21',color=(1.,0.,1.))
 
+        
         ax.set_xlabel('frequency [GHz]')  # Add an x-label to the axes.
         ax.set_ylabel('S-params [dB]')  # Add a y-label to the axes.
         ax.set_title("Filter response")  # Add a title to the axes.
         ax.legend();  # Add a legend.
+        
         plt.ylim(-30,0)
-        plt.show()
+        plt.xlim(np.min(self.f/1e9),np.max(self.f/1e9))
+
+        # plt.show()
 
     def realized_parameters(self,n_interp=20):
         assert self.S_param is not None
