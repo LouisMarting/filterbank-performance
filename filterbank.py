@@ -20,6 +20,7 @@ font_files = font_manager.findSystemFonts(fontpaths=path)
 for font_file in font_files:
     font_manager.fontManager.addfont(font_file)
 mpl.rcParams['font.family'] = 'CMU Serif'
+mpl.rcParams['mathtext.fontset'] = 'cm'
 mpl.rcParams['axes.unicode_minus'] = False
 
 # uncomment when rendering for thesis
@@ -34,7 +35,22 @@ mpl.rcParams['ytick.labelsize'] = 8
 mpl.rcParams['legend.fontsize'] = 8
 mpl.rcParams['figure.titlesize'] = 12
 
-mpl.rcParams['axes.linewidth'] = 0.75
+mpl.rcParams['xtick.top'] = True
+mpl.rcParams['xtick.minor.visible'] = True
+mpl.rcParams['ytick.right'] = True
+mpl.rcParams['ytick.minor.visible'] = True
+mpl.rcParams['xtick.minor.size'] = 1
+mpl.rcParams['xtick.major.size'] = 2
+mpl.rcParams['xtick.minor.width'] = 0.4
+mpl.rcParams['xtick.major.width'] = 0.6
+mpl.rcParams['ytick.minor.size'] = 1
+mpl.rcParams['ytick.major.size'] = 2
+mpl.rcParams['ytick.minor.width'] = 0.4
+mpl.rcParams['ytick.major.width'] = 0.6
+
+mpl.rcParams['axes.linewidth'] = 0.6
+mpl.rcParams['lines.linewidth'] = 0.75
+mpl.rcParams['lines.markersize'] = 0.75
 mpl.rcParams['figure.figsize'] = [2.5,2.5]
 mpl.rcParams['figure.dpi'] = 200
 mpl.rcParams["savefig.dpi"] = 400
@@ -224,6 +240,7 @@ class BaseFilter:
         self.S11_absSq = None
         self.S21_absSq = None
         self.S31_absSq = None
+        self.S41_absSq = None
 
         self.Ql_realized = None
         self.f0_realized = None
@@ -282,10 +299,10 @@ class BaseFilter:
 
             self.S11_absSq = np.abs(self.S_param[0][0][0])**2
             self.S21_absSq = np.abs(self.S_param[0][1][0])**2
-            self.S31_absSq = np.zeros(np.size(self.S11_absSq))
+            self.S31_absSq = np.abs(self.S_param[1][1][0])**2
 
-            for i in np.arange(1,np.shape(self.S_param)[0]):
-                self.S31_absSq += np.abs(self.S_param[i][1][0])**2
+            if np.shape(self.S_param)[0] > 2:
+                self.S41_absSq = np.abs(self.S_param[2][1][0])**2
 
             return self.S_param
     
@@ -293,15 +310,19 @@ class BaseFilter:
         assert self.S_param is not None
         fig, ax =plt.subplots(layout='constrained')
 
-        ax.plot(self.f/1e9,10*np.log10(self.S31_absSq),label='S31',color=(0.,0.,0.))
-        ax.plot(self.f/1e9,10*np.log10(self.S11_absSq),label='S11',color=(0.,1.,1.))
-        ax.plot(self.f/1e9,10*np.log10(self.S21_absSq),label='S21',color=(1.,0.,1.))
+        ax.plot(self.f/1e9,self.S11_absSq,label=r'$|S_{11}|^2$',color=(0.,1.,1.))
+        ax.plot(self.f/1e9,self.S21_absSq,label=r'$|S_{21}|^2$',color=(1.,0.,1.))
+        ax.plot(self.f/1e9,self.S31_absSq,label=r'$|S_{31}|^2$',color=(0.,0.,0.))
+
+        if self.S41_absSq is not None:
+            ax.plot(self.f/1e9,self.S41_absSq,label=r'$|S_{41}|^2$',color=(0.5,0.5,0.5))
 
         ax.set_xlabel('frequency [GHz]')  # Add an x-label to the axes.
-        ax.set_ylabel('S-params [dB]')  # Add a y-label to the axes.
+        ax.set_ylabel('Transmission')  # Add a y-label to the axes.
         ax.set_title("Filter response")  # Add a title to the axes.
-        ax.legend();  # Add a legend.
-        plt.ylim(-30,0)
+        ax.legend(loc="lower right");  # Add a legend.
+        plt.yscale("log")
+        plt.ylim(0.01,1)
         plt.xlim((self.f0-2*self.f0/self.Ql)/1e9,(self.f0+2*self.f0/self.Ql)/1e9)
         # plt.show()
         
@@ -312,20 +333,20 @@ class BaseFilter:
  
         S31_absSq_q = np.interp(fq,self.f,self.S31_absSq)
 
-        peaks,_ = find_peaks(S31_absSq_q,height=0.5*max(S31_absSq_q))
+        i_peaks,peak_properties = find_peaks(S31_absSq_q,height=0.5*max(S31_absSq_q),prominence=0.05)
 
-
-        # f0, as realized in the filter
-        self.f0_realized = fq[peaks[0]]
+        i_peak = i_peaks[np.argmax(peak_properties["peak_heights"])]
+        # f0, as realized in the filter (which is the peak with the highest height given a minimum relative height and prominence)
+        self.f0_realized = fq[i_peak]
 
         # Find FWHM manually:
-        HalfMaximum = S31_absSq_q[peaks[0]] / 2
+        HalfMaximum = S31_absSq_q[i_peak] / 2
         diff_from_HalfMaximum = np.abs(S31_absSq_q-HalfMaximum)
 
         # search window = +/- a number of filter widths
         search_range = [self.f0_realized-3*self.f0/self.Ql, self.f0_realized+3*self.f0/self.Ql]
         
-        search_window = np.logical_and(fq > search_range,fq < self.f0_realized)
+        search_window = np.logical_and(fq > search_range[0],fq < self.f0_realized)
         i_HalfMaximum_lower = ma.masked_array(diff_from_HalfMaximum,mask=~search_window).argmin()
 
         search_window = np.logical_and(fq > self.f0_realized,fq < search_range[-1])
@@ -341,12 +362,17 @@ class BaseFilter:
 
 
 class ManifoldFilter(BaseFilter):
-    def __init__(self, f0, Ql, TransmissionLines: dict, sigma_f0=0, sigma_Ql=0) -> None:
+    def __init__(self, f0, Ql, TransmissionLines: dict, sigma_f0=0, sigma_Ql=0, compensate=True) -> None:
         super().__init__(f0, Ql, TransmissionLines)
 
+        if compensate == True:
+            self.Ql = Ql * 1.15
+        else:
+            self.Ql = Ql
+
         self.Resonator = Resonator(
-            f0 = f0, 
-            Ql = Ql, 
+            f0 = self.f0, 
+            Ql = self.Ql, 
             TransmissionLine = self.TransmissionLine_resonator, 
             Z_termination = [self.TransmissionLine_through.Z0/2, self.TransmissionLine_MKID.Z0], 
             sigma_f0 = sigma_f0, 
@@ -372,16 +398,21 @@ class ManifoldFilter(BaseFilter):
 
 
 class ReflectorFilter(BaseFilter):
-    def __init__(self, f0, Ql, TransmissionLines: dict, sigma_f0=0, sigma_Ql=0) -> None:
+    def __init__(self, f0, Ql, TransmissionLines: dict, sigma_f0=0, sigma_Ql=0, compensate=True) -> None:
         super().__init__(f0, Ql, TransmissionLines)
+
+        if compensate == True:
+            self.Ql = Ql * 0.75
+        else:
+            self.Ql = Ql
 
         self.lmda_quarter = self.TransmissionLine_through.wavelength(f0) / 4
         self.sep = self.lmda_quarter # quarter lambda is the standard BaseFilter separation
 
         # Impedance of resonator is equal to onesided connection, due to relfector creating an open condition
         self.Resonator = Resonator(
-            f0 = f0, 
-            Ql = Ql, 
+            f0 = self.f0, 
+            Ql = self.Ql, 
             TransmissionLine = self.TransmissionLine_resonator, 
             Z_termination = [self.TransmissionLine_through.Z0, self.TransmissionLine_MKID.Z0], 
             sigma_f0 = sigma_f0, 
@@ -389,8 +420,8 @@ class ReflectorFilter(BaseFilter):
         )
 
         self.Reflector = Reflector(
-            f0 = f0, 
-            Ql = Ql, 
+            f0 = self.f0, 
+            Ql = self.Ql, 
             TransmissionLine = self.TransmissionLine_resonator, 
             Z_termination = self.TransmissionLine_through.Z0/2, 
             sigma_f0 = sigma_f0, 
@@ -433,16 +464,21 @@ class ReflectorFilter(BaseFilter):
 
 
 class DirectionalFilter(BaseFilter):
-    def __init__(self, f0, Ql, TransmissionLines : dict, sigma_f0=0, sigma_Ql=0) -> None:
+    def __init__(self, f0, Ql, TransmissionLines : dict, sigma_f0=0, sigma_Ql=0, compensate=True) -> None:
         super().__init__(f0, Ql, TransmissionLines)
+
+        if compensate == True:
+            self.Ql = Ql * 0.95
+        else:
+            self.Ql = Ql
 
         self.lmda_quarter = self.TransmissionLine_through.wavelength(f0) / 4
         self.lmda_3quarter = self.TransmissionLine_MKID.wavelength(f0) * 3 / 4
         self.sep = self.lmda_quarter # quarter lambda is the standard BaseFilter separation
 
         self.Resonator1 = Resonator(
-            f0 = f0, 
-            Ql = Ql, 
+            f0 = self.f0, 
+            Ql = self.Ql, 
             TransmissionLine = self.TransmissionLine_resonator, 
             Z_termination = [self.TransmissionLine_through.Z0/2, self.TransmissionLine_MKID.Z0/2], 
             sigma_f0 = sigma_f0, 
@@ -450,8 +486,8 @@ class DirectionalFilter(BaseFilter):
         )
 
         self.Resonator2 = Resonator(
-            f0 = f0, 
-            Ql = Ql, 
+            f0 = self.f0, 
+            Ql = self.Ql, 
             TransmissionLine = self.TransmissionLine_resonator, 
             Z_termination = [self.TransmissionLine_through.Z0/2, self.TransmissionLine_MKID.Z0/2], 
             sigma_f0 = sigma_f0, 
@@ -503,7 +539,7 @@ class DirectionalFilter(BaseFilter):
 
 
 class Filterbank:
-    def __init__(self, FilterClass : BaseFilter, TransmissionLines : dict, f0_min, f0_max, Ql, oversampling=1, sigma_f0=0, sigma_Ql=0) -> None:
+    def __init__(self, FilterClass : BaseFilter, TransmissionLines : dict, f0_min, f0_max, Ql, oversampling=1, sigma_f0=0, sigma_Ql=0, compensate=True) -> None:
         self.S_param = None
         self.f = None
         self.S11_absSq = None
@@ -512,6 +548,8 @@ class Filterbank:
 
         self.f0_realized = None
         self.Ql_realized = None
+        self.inband_filter_eff = None
+        self.inband_fraction = None
 
         self.FilterClass = FilterClass
         self.TransmissionLines = TransmissionLines
@@ -534,7 +572,7 @@ class Filterbank:
 
         self.Filters = np.empty(self.n_filters,dtype=BaseFilter)
         for i in np.arange(self.n_filters):
-            self.Filters[i] = FilterClass(f0=self.f0[i], Ql=Ql, TransmissionLines = TransmissionLines, sigma_f0=sigma_f0, sigma_Ql=sigma_Ql)
+            self.Filters[i] = FilterClass(f0=self.f0[i], Ql=Ql, TransmissionLines = TransmissionLines, sigma_f0=sigma_f0, sigma_Ql=sigma_Ql, compensate=compensate)
     
     
     def S(self,f):
@@ -623,24 +661,29 @@ class Filterbank:
     
     def plot(self):
         assert self.S_param is not None
-        fig, ax =plt.subplots(figsize=(6,2),layout='constrained')
+        fig, ax =plt.subplots(figsize=(5.5,1.5),layout='constrained')
 
         cmap = cm.get_cmap('rainbow').copy()
         norm = mpl.colors.Normalize(vmin=0, vmax=np.shape(self.S31_absSq_list)[0])
 
         for i,S31_absSq in enumerate(self.S31_absSq_list):
-            ax.plot(self.f/1e9,10*np.log10(S31_absSq),color=cmap(norm(i)))
+            ax.plot(self.f/1e9,S31_absSq*100,color=cmap(norm(i)))
 
-        ax.plot(self.f/1e9,10*np.log10(self.S11_absSq),label='S11',color=(0.,1.,1.))
-        ax.plot(self.f/1e9,10*np.log10(self.S21_absSq),label='S21',color=(1.,0.,1.))
+        envelope = np.array(self.S31_absSq_list).max(axis=0)
+        sum_filters = np.sum(self.S31_absSq_list,axis=0)
+        # ax.plot(self.f/1e9,envelope*100,label=r'$\eta_{env}$',color=(0.,0.,0.))
+        ax.plot(self.f/1e9,sum_filters*100,label=r'$\sum_3^{N+2}|S_{i1}|^2$',color="0.5")
+        ax.plot(self.f/1e9,self.S11_absSq*100,label=r'$|S_{11}|^2$',color=(0.,1.,1.))
+        ax.plot(self.f/1e9,self.S21_absSq*100,label=r'$|S_{21}|^2$',color=(1.,0.,1.))
 
         
         ax.set_xlabel('frequency [GHz]')  # Add an x-label to the axes.
-        ax.set_ylabel('S-params [dB]')  # Add a y-label to the axes.
+        ax.set_ylabel('Transmission [%]')  # Add a y-label to the axes.
         ax.set_title("Filter response")  # Add a title to the axes.
-        ax.legend();  # Add a legend.
+        ax.legend(loc='lower left');  # Add a legend.
         
-        plt.ylim(-30,0)
+        # plt.yscale("log")
+        plt.ylim(0,100)
         plt.xlim(np.min(self.f/1e9),np.max(self.f/1e9))
 
         # plt.show()
@@ -651,18 +694,20 @@ class Filterbank:
         fq = np.linspace(self.f[0],self.f[-1],n_interp*len(self.f))
         self.f0_realized = np.zeros(self.n_filters)
         self.Ql_realized = np.zeros(self.n_filters)
+        self.inband_filter_eff = np.zeros(self.n_filters)
+        self.inband_fraction = np.zeros(self.n_filters)
 
         for i in np.arange(self.n_filters):
             S31_absSq_q = np.interp(fq,self.f,self.S31_absSq_list[i])
 
-            peaks,_ = find_peaks(S31_absSq_q,height=0.5*max(S31_absSq_q))
+            i_peaks,peak_properties = find_peaks(S31_absSq_q,height=0.5*max(S31_absSq_q),prominence=0.05)
 
-
-            # f0, as realized in the filterbank
-            self.f0_realized[i] = fq[peaks[0]]
+            i_peak = i_peaks[np.argmax(peak_properties["peak_heights"])]
+            # f0, as realized in the filterbank (which is the peak with the highest height given a minimum relative height and prominence)
+            self.f0_realized[i] = fq[i_peak]
 
             # Find FWHM manually:
-            HalfMaximum = S31_absSq_q[peaks[0]] / 2
+            HalfMaximum = S31_absSq_q[i_peak] / 2
             diff_from_HalfMaximum = np.abs(S31_absSq_q-HalfMaximum)
 
             # search window = +/- a number of filter widths
@@ -678,9 +723,15 @@ class Filterbank:
 
             self.Ql_realized[i] = self.f0_realized[i] / fwhm
 
+            # inband_filter_eff
+            # inband_fraction
+            i_f_max_fb = np.argmin(np.abs(fq-self.f0_realized[0]*1.01))
 
 
-        return self.f0_realized, self.Ql_realized
+            self.inband_filter_eff[i] = np.sum(S31_absSq_q[i_HalfMaximum_lower:i_HalfMaximum_higher+1]) / (i_HalfMaximum_higher+1-i_HalfMaximum_lower)
+            self.inband_fraction[i] = np.sum(S31_absSq_q[i_HalfMaximum_lower:i_HalfMaximum_higher+1]) / np.sum(S31_absSq_q[:i_f_max_fb])
+
+        return self.f0_realized, self.Ql_realized, self.inband_filter_eff, self.inband_fraction
     
     def reset_and_shuffle(self):
         for i in np.arange(self.n_filters):

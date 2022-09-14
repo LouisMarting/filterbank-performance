@@ -11,253 +11,191 @@ from analysis import *
 
 
 
+
+
+
+
+fig_path = "H:/My Documents/Thesis/SZ-mapping filterbank concept for Kenichi/"
+# fig_path = "W:/student-homes/m/lmarting/My Documents/Thesis/Figures/Thesis/Report figures/"
+
 nF = int(5e3)
-f = np.linspace(180e9,440e9,nF)
+f = np.linspace(100e9,330e9,nF)
 
-f0_min = 200e9
-f0_max = 400e9
-Ql = 100
+nF = int(5e2)
+f2 = np.linspace(190e9,210e9,nF)
 
-Z0_res = 70
+f0_min = 135e9
+f0_max = 270e9
+Ql = 10
+
+Z0_res = 80
 eps_eff_res = 40
 
-Z0_thru = 70
+Z0_thru = 80
 eps_eff_thru = 40
 
 TL_thru = TransmissionLine(Z0_thru,eps_eff_thru)
 
 TL_res = TransmissionLine(Z0_res,eps_eff_res)
 
-TransmissionLines = {
+TransmissionLinesDict = {
     'through' : TL_thru,
     'resonator' : TL_res,
     'MKID' : TL_thru
 }
 
-TestDirFilter =DirectionalFilter(200e9,Ql,TransmissionLines=TransmissionLines)
 
-ABCD_dir = TestDirFilter.ABCD(f)
+Ql_compensation = {
+    'ManifoldFilter' : Ql*1.30,
+    'ReflectorFilter' : Ql*0.7,
+    'DirectionalFilter' : Ql*1.12
+}
 
-ABCD_chain = chain(ABCD_dir,ABCD_dir)
+Filtertype_color_dict = {
+    'ManifoldFilter' : np.array([86,199,74])/255,
+    'ReflectorFilter' : np.array([242,131,45])/255,
+    'DirectionalFilter' : np.array([90,136,237])/255
+}
 
-ABCD_unchained = unchain(ABCD_chain,ABCD_dir)
+filterbank = dict()
+Q_data = dict()
+f0_data = dict()
 
-print(np.all(np.isclose(ABCD_unchained,ABCD_dir)))
+Filters = (DirectionalFilter,)
+
+for Filter in Filters:
+    filt_name = str(Filter.__name__)
+
+    isolated_filter : BaseFilter = Filter(f0=200e9,Ql=Ql,TransmissionLines=TransmissionLinesDict)
+
+    isolated_filter.S(f2)
+
+    isolated_filter.plot()
+
+    savestr = fig_path + filt_name + "_isolated_filter.pdf"
+    plt.savefig(fname=savestr)
+    fig = plt.gcf()
+    fig.canvas.manager.set_window_title(savestr)
+    # plt.close()
+
+    filterbank[filt_name] = Filterbank(
+        FilterClass=Filter,
+        TransmissionLines=TransmissionLinesDict,
+        f0_min=f0_min,
+        f0_max=f0_max,
+        Ql=Ql
+    )
+
+    filterbank[filt_name].S(f)
+
+    # filterbank[filt_name].plot()
+
+    # savestr = fig_path + filt_name + "_filterbank.pdf"
+    # plt.savefig(fname=savestr)
+    # fig = plt.gcf()
+    # fig.canvas.manager.set_window_title(savestr)
+
+    f0_data[filt_name],Q_data[filt_name] = filterbank[filt_name].realized_parameters()
+
+    plt.close()
 
 
+filterbank = dict()
+envelope = dict()
+Q_compensated_data = dict()
+f0_compensated_data = dict()
 
+######## Compensated ################
+for Filter in Filters:
+    filt_name = str(Filter.__name__)
 
+    isolated_filter : BaseFilter = Filter(f0=200e9,Ql=Ql_compensation[filt_name],TransmissionLines=TransmissionLinesDict)
 
-#=============================================
-var_settings = [(0.2,0.1)]#[(0,0), (0.1,0.05), (0.2,0.1), (0.3,0.3)]
-for var_setting in var_settings:
-    OmegaFilterbank = Filterbank(DirectionalFilter,TransmissionLines,f0_min=f0_min,f0_max=f0_max,Ql=Ql, sigma_f0=var_setting[0],sigma_Ql=var_setting[1])
+    isolated_filter.S(f2)
 
-    # OmegaFilterbank.plot()
-    analyse(OmegaFilterbank,f,n_filterbanks=5)
+    # isolated_filter.plot()
+
+    # savestr = fig_path + filt_name + "_isolated_filter.pdf"
+    # plt.savefig(fname=savestr)
+    # fig = plt.gcf()
+    # fig.canvas.manager.set_window_title(savestr)
+    # plt.close()
+
+    filterbank[filt_name] = Filterbank(
+        FilterClass=Filter,
+        TransmissionLines=TransmissionLinesDict,
+        f0_min=f0_min,
+        f0_max=f0_max,
+        Ql=Ql_compensation[filt_name]
+    )
+
+    filterbank[filt_name].S(f)
+
+    # filterbank[filt_name].plot()
+
+    # savestr = fig_path + filt_name + "_filterbank.pdf"
+    # plt.savefig(fname=savestr)
+    # fig = plt.gcf()
+    # fig.canvas.manager.set_window_title(savestr)
+
+    f0_compensated_data[filt_name],Q_compensated_data[filt_name] = filterbank[filt_name].realized_parameters()
     
 
+    plt.close()
 
-    # S11_absSq = np.abs(S[0][0][0])**2
-    # S21_absSq = np.abs(S[0][1][0])**2
+fig, (ax1, ax2) =plt.subplots(nrows=1,ncols=2,sharey=True,figsize=(5.5,2.5),layout='constrained')
 
-    # S31_absSq_list = []
-    # for i in np.arange(1,np.shape(S)[0],2):
-    #     S_filt1 = np.abs(S[i][1][0])**2
-    #     S_filt2 = np.abs(S[i+1][1][0])**2
-        
-    #     S31_absSq_list.append(S_filt1 + S_filt2)
-
-    # fig, ax =plt.subplots(figsize=(12,5),layout='constrained')
-
-    # cmap = cm.get_cmap('rainbow').copy()
-    # norm = mpl.colors.Normalize(vmin=0, vmax=np.shape(S31_absSq_list)[0])
-
-    # for i,S31_absSq in enumerate(S31_absSq_list):
-    #     ax.plot(f/1e9,10*np.log10(S31_absSq),color=cmap(norm(i)))
-
-    # ax.plot(f/1e9,10*np.log10(S11_absSq),label='S11',color=(0.,1.,1.))
-    # ax.plot(f/1e9,10*np.log10(S21_absSq),label='S21',color=(1.,0.,1.))
-
-    # ax.set_xlabel('frequency [GHz]')  # Add an x-label to the axes.
-    # ax.set_ylabel('S-params [dB]')  # Add a y-label to the axes.
-    # ax.set_title("Filterbank - Test")  # Add a title to the axes.
-    # ax.legend();  # Add a legend.
-    # plt.ylim(-30,0)
-    # plt.show()
-
-OmegaFilterbank.Filters[0].S(f)
-OmegaFilterbank.Filters[0].plot()
+for Filter in Filters:
+    filt_name = str(Filter.__name__)
+    ax1.scatter(f0_data[filt_name]/1e9,Q_data[filt_name],label=f"{filt_name}",color=Filtertype_color_dict[filt_name])
+    ax2.scatter(f0_compensated_data[filt_name]/1e9,Q_compensated_data[filt_name],label=f"{filt_name}",color=Filtertype_color_dict[filt_name])
 
 
-
-
-
-
-# f0_realized,Ql_realized = OmegaFilterbank.realized_parameters()
-
-# fig, ax =plt.subplots(figsize=(8,6),layout='constrained')
-
-# ax.scatter(f0_realized/1e9,Ql_realized,color=(0.,0.,0.))
-
-# ax.set_xlabel('frequency [GHz]')  # Add an x-label to the axes.
-# ax.set_ylabel('realized Ql')  # Add a y-label to the axes.
-# ax.set_title("Realized filter parameters")  # Add a title to the axes.
-# # ax.legend();  # Add a legend.
-# # plt.ylim(-30,0)
-# # plt.xlim((self.f0-2*self.f0/self.Ql)/1e9,(self.f0+2*self.f0/self.Ql)/1e9)
-# plt.show()
-
-
-# f0 = OmegaFilterbank.f0
-
-# df_variance = Ql * (f0_realized - f0) / f0
-# Ql_variance = Ql_realized / Ql
-
-# fig, (ax1, ax2) =plt.subplots(1,2,figsize=(16,6),layout='constrained')
-
-# ax1.hist(df_variance,bins=30)
-
-# ax1.set_xlabel('frequency [GHz]')  # Add an x-label to the axes.
-# ax1.set_title("Realized filter parameters")  # Add a title to the axes.
-
-
-# ax2.hist(Ql_variance,bins=30)
-
-# ax2.set_xlabel('realized Ql')  # Add an x-label to the axes.
-# ax2.set_title("Realized filter parameters")  # Add a title to the axes.
-
-
-# # plt.ylim(-30,0)
-# # plt.xlim((self.f0-2*self.f0/self.Ql)/1e9,(self.f0+2*self.f0/self.Ql)/1e9)
-# plt.show()
-
-
-
-# #===================================================================
-# GammaFilterbank = Filterbank(ReflectorFilter,TransmissionLines,f0_min=f0_min,f0_max=f0_max,Ql=Ql)
-
-# S = GammaFilterbank.S(f)
-
-
-# S11_absSq = np.abs(S[0][0][0])**2
-# S21_absSq = np.abs(S[0][1][0])**2
-
-# S31_absSq_list = []
-# for i in np.arange(1,np.shape(S)[0],1):
-#     S31_absSq = np.abs(S[i][1][0])**2
-
-#     S31_absSq_list.append(S31_absSq)
-
-# fig, ax =plt.subplots(figsize=(12,5),layout='constrained')
-# ax.plot(f,10*np.log10(S11_absSq),label='S11')
-# ax.plot(f,10*np.log10(S21_absSq),label='S21')
-
-# cmap = cm.get_cmap('rainbow').copy()
-# norm = mpl.colors.Normalize(vmin=0, vmax=np.shape(S31_absSq_list)[0])
-
-# for i,S31_absSq in enumerate(S31_absSq_list):
-#     ax.plot(f,10*np.log10(S31_absSq),color=cmap(norm(i)))
-
-# ax.set_xlabel('frequency [GHz]')  # Add an x-label to the axes.
-# ax.set_ylabel('S-params [dB]')  # Add a y-label to the axes.
-# ax.set_title("Filterbank")  # Add a title to the axes.
-# ax.legend();  # Add a legend.
+ax1.set_xlabel('frequency [GHz]')  # Add an x-label to the axes.
+ax2.set_xlabel('frequency [GHz]')  # Add an x-label to the axes.
+ax1.set_ylabel('Q-factor')  # Add a y-label to the axes.
+ax1.set_title("Uncompensated Q-factors")  # Add a title to the axes.
+ax1.legend();  # Add a legend.
+ax2.set_title("Compensated Q-factors")  # Add a title to the axes.
 # plt.ylim(-30,0)
-# plt.show()
+# plt.xlim(np.min(f)/1e9,np.max(f)/1e9)
 
-# #===================================================================
-# IotaFilterbank = Filterbank(ManifoldFilter,TransmissionLines,f0_min=f0_min,f0_max=f0_max,Ql=Ql)
-
-# S = IotaFilterbank.S(f)
-
-
-# S11_absSq = np.abs(S[0][0][0])**2
-# S21_absSq = np.abs(S[0][1][0])**2
-
-# S31_absSq_list = []
-# for i in np.arange(1,np.shape(S)[0],1):
-#     S31_absSq = np.abs(S[i][1][0])**2
-
-#     S31_absSq_list.append(S31_absSq)
-
-# fig, ax =plt.subplots(figsize=(12,5),layout='constrained')
-# ax.plot(f,10*np.log10(S11_absSq),label='S11')
-# ax.plot(f,10*np.log10(S21_absSq),label='S21')
-
-# cmap = cm.get_cmap('rainbow').copy()
-# norm = mpl.colors.Normalize(vmin=0, vmax=np.shape(S31_absSq_list)[0])
-
-# for i,S31_absSq in enumerate(S31_absSq_list):
-#     ax.plot(f,10*np.log10(S31_absSq),color=cmap(norm(i)))
-
-# ax.set_xlabel('frequency [GHz]')  # Add an x-label to the axes.
-# ax.set_ylabel('S-params [dB]')  # Add a y-label to the axes.
-# ax.set_title("Filterbank")  # Add a title to the axes.
-# ax.legend();  # Add a legend.
-# plt.ylim(-30,0)
-# plt.show()
+savestr = fig_path + "Realized_Q-factors.pdf"
+plt.savefig(fname=savestr)
+fig.canvas.manager.set_window_title(savestr)
 
 
-###=================================================================================
-# Filter : ReflectorFilter = GammaFilterbank.Filters[0]
-
-# ABCD = Filter.Reflector.ABCD(f)
-
-# S_filter = abcd2s(ABCD,Z0_thru)
-
-# S11_absSq = np.abs(S_filter[0][0])**2
-# S21_absSq = np.abs(S_filter[1][0])**2
 
 
-# ABCD_termination = np.repeat(np.identity(2)[:,:,np.newaxis],len(f),axis=-1)
-# ABCD = Filter.Reflector.ABCD(f)
+fig, ax =plt.subplots(nrows=1,ncols=1,sharex=True,figsize=(6,1.5),layout='constrained')
 
-# S_filter_31 = abcd2s(ABCD,Z0_thru)
+S31_all = filterbank["DirectionalFilter"].S31_absSq_list
 
-# S31_absSq = np.abs(S_filter_31[1][0])**2
+#ax
+cmap = cm.get_cmap('rainbow').copy()
+norm = mpl.colors.Normalize(vmin=0, vmax=np.shape(S31_all)[0])
 
+for i,S31_absSq in enumerate(S31_all):
+    ax.plot(f/1e9,100*S31_absSq,color=cmap(norm(i)))
 
-# fig, ax =plt.subplots(figsize=(12,5),layout='constrained')
+sum_filters = np.sum(S31_all,axis=0)
+ax.plot(f/1e9,100*sum_filters,label='sum filters',color="0.5")
 
-# ax.plot(f,10*np.log10(S11_absSq),label='S11')
-# ax.plot(f,10*np.log10(S21_absSq),label='S21')
-# # ax.plot(f,10*np.log10(S31_absSq,),label='S31')
+envelope["DirectionalFilter"] = np.array(filterbank['DirectionalFilter'].S31_absSq_list).max(axis=0)
+# ax.plot(f/1e9,100*envelope["DirectionalFilter"],label='envelope',color=(0.,0.,0.))
 
+ax.plot(f/1e9,100*filterbank["DirectionalFilter"].S11_absSq,label='S11',color=(0.,1.,1.))
+ax.plot(f/1e9,100*filterbank["DirectionalFilter"].S21_absSq,label='S21',color=(1.,0.,1.))
 
-# ax.set_xlabel('frequency [GHz]')  # Add an x-label to the axes.
-# ax.set_ylabel('S-params [dB]')  # Add a y-label to the axes.
-# ax.set_title("Filterbank")  # Add a title to the axes.
-# ax.legend();  # Add a legend.
-# plt.ylim(-30,0)
-# plt.show()
+ax.set_ylim(0,100)
+ax.set_xlim(np.min(f)/1e9,np.max(f)/1e9)
+ax.set_xlabel('Frequency [GHz]')
+ax.set_ylabel('Transmission [%]')  # Add a y-label to the axes.
+# plt.title("Realized Q-factors")  # Add a title to the axes.
+ax.legend();  # Add a legend.
 
-# ABCD_succeeding = OmegaFilterbank.Filters[0].ABCD_sep(f)
+savestr = fig_path + "Filterbank_SZ_mapping.pdf"
+plt.savefig(fname=savestr)
+fig.canvas.manager.set_window_title(savestr)
 
-# for i, Filter in enumerate(OmegaFilterbank.Filters):
-#     Filter : BaseFilter # set the expected datatype of Filter
-
-#     ABCD_succeeding = chain(
-#         ABCD_succeeding,
-#         Filter.ABCD(f),
-#         Filter.ABCD_sep(f) 
-#     )
-
-
-# S_filter = abcd2s(ABCD_succeeding,Z0_thru)
-
-# S11_absSq = np.abs(S_filter[0][0])**2
-# S21_absSq = np.abs(S_filter[1][0])**2
-
-
-# fig, ax =plt.subplots(figsize=(12,5),layout='constrained')
-
-# ax.plot(f,10*np.log10(S11_absSq),label='S11')
-# ax.plot(f,10*np.log10(S21_absSq),label='S21')
-
-# ax.set_xlabel('frequency [GHz]')  # Add an x-label to the axes.
-# ax.set_ylabel('S-params [dB]')  # Add a y-label to the axes.
-# ax.set_title("Filterbank")  # Add a title to the axes.
-# ax.legend();  # Add a legend.
-# plt.ylim(-30,0)
-# plt.show()
+plt.show()

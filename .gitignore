@@ -1,6 +1,7 @@
 /pyvenv
 /venv
 *.csv
+*.mat
 *.pdf
 .vscode
 /__pycache__
