@@ -1,5 +1,6 @@
 /pyvenv
 /venv
+/.venv
 *.csv
 *.mat
 *.pdf
