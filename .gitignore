@@ -1,8 +1,10 @@
-/pyvenv
-/venv
-/.venv
+/figures
 *.csv
 *.mat
 *.pdf
 .vscode
 /__pycache__
+*.zip
+/*.egg-info
+/build
+/output
