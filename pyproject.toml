@@ -16,7 +16,7 @@ dependencies = [
     "numpy"
 ]
 
-#setuptools automatically checks all folders under the root folder. the following code prevents this.
+#setuptools automatically checks all folders under the root folder. the setting namespaces = false prevents this.
 [tool.setuptools.packages.find]
 where = ["."]  # list of folders that contain the packages (["."] by default)
 include = ["filterbank*"]  # package names should match these glob patterns (["*"] by default)
