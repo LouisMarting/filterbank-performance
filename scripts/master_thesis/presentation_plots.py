@@ -7,9 +7,9 @@ import matplotlib.font_manager as font_manager
 
 plt.ioff()
 
-from filterbank import Resonator,TransmissionLine,DirectionalFilter,ReflectorFilter,ManifoldFilter,Filterbank,BaseFilter
-from transformations import *
-from transformations import abcd_shuntload, chain,unchain,abcd2s
+from filterbank.components import Resonator,TransmissionLine,DirectionalFilter,ReflectorFilter,ManifoldFilter,Filterbank,BaseFilter
+from filterbank.transformations import *
+from filterbank.transformations import abcd_shuntload, chain,unchain,abcd2s
 from filterbank.analysis import *
 
 thesisfig_path = "H:/My Documents/Thesis/Presentation/Python/"
