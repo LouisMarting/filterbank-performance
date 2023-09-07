@@ -154,8 +154,8 @@ class Coupler:
         
 
 class Resonator:
-    def __init__(self, f0, Ql, TransmissionLine : TransmissionLine, Z_termination, sigma_f0=0, sigma_Ql=0) -> None:
-        self.f0, self.Ql = res_variance(f0,Ql,sigma_f0,sigma_Ql)
+    def __init__(self, f0, Ql, TransmissionLine : TransmissionLine, Z_termination, sigma_f0=0, sigma_Qc=0) -> None:
+        self.f0, self.Ql = res_variance(f0,Ql,TransmissionLine.Qi,sigma_f0,sigma_Qc)
         
         self.TransmissionLine = TransmissionLine
 
@@ -196,8 +196,8 @@ class Resonator:
 
 
 class Reflector:
-    def __init__(self, f0, Ql, TransmissionLine : TransmissionLine, Z_termination, sigma_f0=0, sigma_Ql=0) -> None:
-        self.f0, self.Ql = res_variance(f0,Ql,sigma_f0,sigma_Ql)
+    def __init__(self, f0, Ql, TransmissionLine : TransmissionLine, Z_termination, sigma_f0=0, sigma_Qc=0) -> None:
+        self.f0, self.Ql = res_variance(f0,Ql,TransmissionLine.Qi,sigma_f0,sigma_Qc)
 
         self.TransmissionLine = TransmissionLine
 
@@ -363,7 +363,7 @@ class BaseFilter:
 
 
 class ManifoldFilter(BaseFilter):
-    def __init__(self, f0, Ql, TransmissionLines: dict, sigma_f0=0, sigma_Ql=0, compensate=True) -> None:
+    def __init__(self, f0, Ql, TransmissionLines: dict, sigma_f0=0, sigma_Qc=0, compensate=True) -> None:
         super().__init__(f0, Ql, TransmissionLines)
 
         if compensate == True:
@@ -377,7 +377,7 @@ class ManifoldFilter(BaseFilter):
             TransmissionLine = self.TransmissionLine_resonator, 
             Z_termination = [self.TransmissionLine_through.Z0/2, self.TransmissionLine_MKID.Z0], 
             sigma_f0 = sigma_f0, 
-            sigma_Ql = sigma_Ql
+            sigma_Qc = sigma_Qc
         )
 
     def ABCD(self, f):
@@ -399,7 +399,7 @@ class ManifoldFilter(BaseFilter):
 
 
 class ReflectorFilter(BaseFilter):
-    def __init__(self, f0, Ql, TransmissionLines: dict, sigma_f0=0, sigma_Ql=0, compensate=True) -> None:
+    def __init__(self, f0, Ql, TransmissionLines: dict, sigma_f0=0, sigma_Qc=0, compensate=True) -> None:
         super().__init__(f0, Ql, TransmissionLines)
 
         if compensate == True:
@@ -417,7 +417,7 @@ class ReflectorFilter(BaseFilter):
             TransmissionLine = self.TransmissionLine_resonator, 
             Z_termination = [self.TransmissionLine_through.Z0, self.TransmissionLine_MKID.Z0], 
             sigma_f0 = sigma_f0, 
-            sigma_Ql = sigma_Ql
+            sigma_Qc = sigma_Qc
         )
 
         self.Reflector = Reflector(
@@ -426,7 +426,7 @@ class ReflectorFilter(BaseFilter):
             TransmissionLine = self.TransmissionLine_resonator, 
             Z_termination = self.TransmissionLine_through.Z0/2, 
             sigma_f0 = sigma_f0, 
-            sigma_Ql = sigma_Ql
+            sigma_Qc = sigma_Qc
         )
 
     def ABCD(self, f):
@@ -465,7 +465,7 @@ class ReflectorFilter(BaseFilter):
 
 
 class DirectionalFilter(BaseFilter):
-    def __init__(self, f0, Ql, TransmissionLines : dict, sigma_f0=0, sigma_Ql=0, compensate=True) -> None:
+    def __init__(self, f0, Ql, TransmissionLines : dict, sigma_f0=0, sigma_Qc=0, compensate=True) -> None:
         super().__init__(f0, Ql, TransmissionLines)
 
         if compensate == True:
@@ -483,7 +483,7 @@ class DirectionalFilter(BaseFilter):
             TransmissionLine = self.TransmissionLine_resonator, 
             Z_termination = [self.TransmissionLine_through.Z0/2, self.TransmissionLine_MKID.Z0/2], 
             sigma_f0 = sigma_f0, 
-            sigma_Ql = sigma_Ql
+            sigma_Qc = sigma_Qc
         )
 
         self.Resonator2 = Resonator(
@@ -492,7 +492,7 @@ class DirectionalFilter(BaseFilter):
             TransmissionLine = self.TransmissionLine_resonator, 
             Z_termination = [self.TransmissionLine_through.Z0/2, self.TransmissionLine_MKID.Z0/2], 
             sigma_f0 = sigma_f0, 
-            sigma_Ql = sigma_Ql
+            sigma_Qc = sigma_Qc
         )
         
     
@@ -540,7 +540,7 @@ class DirectionalFilter(BaseFilter):
 
 
 class Filterbank:
-    def __init__(self, FilterClass : BaseFilter, TransmissionLines : dict, f0_min, f0_max, Ql, oversampling=1., sigma_f0=0., sigma_Ql=0., compensate=True) -> None:
+    def __init__(self, FilterClass : BaseFilter, TransmissionLines : dict, f0_min, f0_max, Ql, oversampling=1., sigma_f0=0., sigma_Qc=0., compensate=True) -> None:
         self.S_param = None
         self.f = None
         self.S11_absSq = None
@@ -558,7 +558,7 @@ class Filterbank:
         self.f0_max = f0_max
         self.Ql = Ql
         self.sigma_f0 = sigma_f0
-        self.sigma_Ql = sigma_Ql
+        self.sigma_Qc = sigma_Qc
         
         assert oversampling > 0
         self.oversampling = oversampling
@@ -573,7 +573,7 @@ class Filterbank:
 
         self.Filters = np.empty(self.n_filters,dtype=BaseFilter)
         for i in np.arange(self.n_filters):
-            self.Filters[i] = FilterClass(f0=self.f0[i], Ql=Ql, TransmissionLines = TransmissionLines, sigma_f0=sigma_f0, sigma_Ql=sigma_Ql, compensate=compensate)
+            self.Filters[i] = FilterClass(f0=self.f0[i], Ql=Ql, TransmissionLines = TransmissionLines, sigma_f0=sigma_f0, sigma_Qc=sigma_Qc, compensate=compensate)
     
     
     def S(self,f):
@@ -760,7 +760,7 @@ class Filterbank:
     
     def reset_and_shuffle(self):
         for i in np.arange(self.n_filters):
-            self.Filters[i] = self.FilterClass(f0=self.f0[i], Ql=self.Ql, TransmissionLines = self.TransmissionLines, sigma_f0=self.sigma_f0, sigma_Ql=self.sigma_Ql)
+            self.Filters[i] = self.FilterClass(f0=self.f0[i], Ql=self.Ql, TransmissionLines = self.TransmissionLines, sigma_f0=self.sigma_f0, sigma_Qc=self.sigma_Qc)
 
         self.S_param = None
         self.f = None

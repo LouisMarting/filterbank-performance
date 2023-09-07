@@ -1,13 +1,26 @@
 import numpy as np
 
-def res_variance(f0,Ql,sigma_f0,sigma_Ql):
-    # Ql_threshold = Ql - 1.5 * Ql * sigma_Ql
+def res_variance(f0,Ql,Qi,sigma_f0,sigma_Qc):
+    if np.isinf(Qi):
+        Qc = 2 * Ql
+    else:
+        Qc = 2 * (Ql * Qi)/(Qi - Ql)
+    
     df = f0 / Ql
     
     f0_var = np.random.normal(f0,df*sigma_f0)
-    Ql_var = np.random.normal(Ql,Ql*sigma_Ql)
+    try:
+        Qc_var = np.random.normal(Qc,Qc*sigma_Qc)
+        assert Qc_var > 0, "Qc variance causes <0 Qc value"
+    except AssertionError:
+        Qc_var = Qc
+        raise UserWarning("consider decreasing the variance applied")
 
-    assert Ql_var > 0
+    if np.isinf(Qi):
+        Ql_var = Qc_var / 2
+    else:
+        Ql_var = (Qc_var * Qi) / (Qc_var + 2 * Qi)
+    
     return f0_var, Ql_var
 
 
