@@ -166,16 +166,16 @@ class Resonator:
 
         self.Coupler2 = Coupler(f0=self.f0,Ql=self.Ql,Z_termination=[TransmissionLine.Z0, self.Z_termination[-1]],Qi=TransmissionLine.Qi)
 
-        self.l_res = self.resonator_length()
+        self.l_res = self.resonator_length(f0,Ql)
 
 
-    def resonator_length(self):
+    def resonator_length(self,f0,Ql):
         Z1 = self.Z_termination[0]
         Z2 = self.Z_termination[-1]
         Zres = self.TransmissionLine.Z0
         
-        Z_Coupler1 = self.Coupler1.impedance(self.f0)
-        Z_Coupler2 = self.Coupler2.impedance(self.f0)
+        Z_Coupler1 = Coupler(f0=f0,Ql=Ql,Z_termination=[Zres, Z1],Qi=self.TransmissionLine.Qi).impedance(self.f0)
+        Z_Coupler2 = Coupler(f0=f0,Ql=Ql,Z_termination=[Zres, Z2],Qi=self.TransmissionLine.Qi).impedance(self.f0)
         
         A = Z_Coupler2 + Z2
         
@@ -206,13 +206,14 @@ class Reflector:
 
         self.Coupler = Coupler(f0=self.f0, Ql=self.Ql, Z_termination=[TransmissionLine.Z0, self.Z_termination[0]], Qi=TransmissionLine.Qi, res_length='quarterwave')
 
-        self.l_res = self.resonator_length()
+        self.l_res = self.resonator_length(f0,Ql)
 
 
-    def resonator_length(self):
+    def resonator_length(self,f0,Ql):
         Z1 = self.Z_termination[0]
         Zres = self.TransmissionLine.Z0
-        Z_Coupler = self.Coupler.impedance(self.f0)
+        
+        Z_Coupler = Coupler(f0=f0,Ql=Ql,Z_termination=[Zres, Z1],Qi=self.TransmissionLine.Qi).impedance(self.f0)
         
         kl = np.array(np.arctan( (Z1 - Z_Coupler) / (-1j * (Z1 / Zres - Z_Coupler  / Zres - Zres)) ))
         kl[kl<0] = kl[kl<0] + np.pi
