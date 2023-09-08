@@ -156,8 +156,8 @@ class Coupler:
 class Resonator:
     def __init__(self, f0, Ql, TransmissionLine : TransmissionLine, Z_termination, sigma_f0=0, sigma_Qc=0) -> None:
         self.f0, self.Ql = (f0, Ql)
-        f0_C1, Ql_C1 = res_variance(f0,Ql,TransmissionLine.Qi,sigma_f0,sigma_Qc)
-        f0_C2, Ql_C2 = res_variance(f0,Ql,TransmissionLine.Qi,sigma_f0,sigma_Qc)
+        _    , Ql_C1 = res_variance(f0,Ql,TransmissionLine.Qi,sigma_f0,sigma_Qc)
+        _    , Ql_C2 = res_variance(f0,Ql,TransmissionLine.Qi,sigma_f0,sigma_Qc)
         f0_L1, _     = res_variance(f0,Ql,TransmissionLine.Qi,sigma_f0,sigma_Qc)
         
         self.TransmissionLine = TransmissionLine
@@ -165,9 +165,9 @@ class Resonator:
         assert len(np.atleast_1d(Z_termination)) < 3, "Z_termination has too many components (max 2 components)"
         self.Z_termination = np.atleast_1d(Z_termination)
 
-        self.Coupler1 = Coupler(f0=f0_C1,Ql=Ql_C1,Z_termination=[TransmissionLine.Z0, self.Z_termination[0]],Qi=TransmissionLine.Qi)
+        self.Coupler1 = Coupler(f0=self.f0,Ql=Ql_C1,Z_termination=[TransmissionLine.Z0, self.Z_termination[0]],Qi=TransmissionLine.Qi)
 
-        self.Coupler2 = Coupler(f0=f0_C2,Ql=Ql_C2,Z_termination=[TransmissionLine.Z0, self.Z_termination[-1]],Qi=TransmissionLine.Qi)
+        self.Coupler2 = Coupler(f0=self.f0,Ql=Ql_C2,Z_termination=[TransmissionLine.Z0, self.Z_termination[-1]],Qi=TransmissionLine.Qi)
 
         self.l_res = self.resonator_length(f0_L1)
 
@@ -201,7 +201,7 @@ class Resonator:
 class Reflector:
     def __init__(self, f0, Ql, TransmissionLine : TransmissionLine, Z_termination, sigma_f0=0, sigma_Qc=0) -> None:
         self.f0, self.Ql = (f0, Ql)
-        f0_C1, Ql_C1 = res_variance(f0,Ql,TransmissionLine.Qi,sigma_f0,sigma_Qc)
+        _    , Ql_C1 = res_variance(f0,Ql,TransmissionLine.Qi,sigma_f0,sigma_Qc)
         f0_L1, _     = res_variance(f0,Ql,TransmissionLine.Qi,sigma_f0,sigma_Qc)
 
         self.TransmissionLine = TransmissionLine
@@ -209,7 +209,7 @@ class Reflector:
         assert len(np.atleast_1d(Z_termination)) < 2, "Z_termination has too many components (max 1 component)"
         self.Z_termination = np.atleast_1d(Z_termination)
 
-        self.Coupler = Coupler(f0=f0_C1, Ql=Ql_C1, Z_termination=[TransmissionLine.Z0, self.Z_termination[0]], Qi=TransmissionLine.Qi, res_length='quarterwave')
+        self.Coupler = Coupler(f0=self.f0, Ql=Ql_C1, Z_termination=[TransmissionLine.Z0, self.Z_termination[0]], Qi=TransmissionLine.Qi, res_length='quarterwave')
 
         self.l_res = self.resonator_length(f0_L1)
 
