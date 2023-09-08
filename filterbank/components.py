@@ -155,34 +155,37 @@ class Coupler:
 
 class Resonator:
     def __init__(self, f0, Ql, TransmissionLine : TransmissionLine, Z_termination, sigma_f0=0, sigma_Qc=0) -> None:
-        self.f0, self.Ql = res_variance(f0,Ql,TransmissionLine.Qi,sigma_f0,sigma_Qc)
+        self.f0, self.Ql = (f0, Ql)
+        f0_C1, Ql_C1 = res_variance(f0,Ql,TransmissionLine.Qi,sigma_f0,sigma_Qc)
+        f0_C2, Ql_C2 = res_variance(f0,Ql,TransmissionLine.Qi,sigma_f0,sigma_Qc)
+        f0_L1, _     = res_variance(f0,Ql,TransmissionLine.Qi,sigma_f0,sigma_Qc)
         
         self.TransmissionLine = TransmissionLine
 
         assert len(np.atleast_1d(Z_termination)) < 3, "Z_termination has too many components (max 2 components)"
         self.Z_termination = np.atleast_1d(Z_termination)
 
-        self.Coupler1 = Coupler(f0=self.f0,Ql=self.Ql,Z_termination=[TransmissionLine.Z0, self.Z_termination[0]],Qi=TransmissionLine.Qi)
+        self.Coupler1 = Coupler(f0=f0_C1,Ql=Ql_C1,Z_termination=[TransmissionLine.Z0, self.Z_termination[0]],Qi=TransmissionLine.Qi)
 
-        self.Coupler2 = Coupler(f0=self.f0,Ql=self.Ql,Z_termination=[TransmissionLine.Z0, self.Z_termination[-1]],Qi=TransmissionLine.Qi)
+        self.Coupler2 = Coupler(f0=f0_C2,Ql=Ql_C2,Z_termination=[TransmissionLine.Z0, self.Z_termination[-1]],Qi=TransmissionLine.Qi)
 
-        self.l_res = self.resonator_length(f0,Ql)
+        self.l_res = self.resonator_length(f0_L1)
 
 
-    def resonator_length(self,f0,Ql):
+    def resonator_length(self,f0_var):
         Z1 = self.Z_termination[0]
         Z2 = self.Z_termination[-1]
         Zres = self.TransmissionLine.Z0
         
-        Z_Coupler1 = Coupler(f0=f0,Ql=Ql,Z_termination=[Zres, Z1],Qi=self.TransmissionLine.Qi).impedance(self.f0)
-        Z_Coupler2 = Coupler(f0=f0,Ql=Ql,Z_termination=[Zres, Z2],Qi=self.TransmissionLine.Qi).impedance(self.f0)
+        Z_Coupler1 = Coupler(f0=self.f0,Ql=self.Ql,Z_termination=[Zres, Z1],Qi=self.TransmissionLine.Qi).impedance(f0_var)
+        Z_Coupler2 = Coupler(f0=self.f0,Ql=self.Ql,Z_termination=[Zres, Z2],Qi=self.TransmissionLine.Qi).impedance(f0_var)
         
         A = Z_Coupler2 + Z2
         
         kl = np.array(np.arctan( (Z1 - Z_Coupler1 - A) / (-1j * (Z1 * A / Zres - Z_Coupler1 * A / Zres - Zres)) ))
         kl[kl<0] = kl[kl<0] + np.pi
 
-        lres = np.real(kl / self.TransmissionLine.wavenumber(self.f0))
+        lres = np.real(kl / self.TransmissionLine.wavenumber(f0_var))
         return lres
 
     def ABCD(self,f):
@@ -197,28 +200,30 @@ class Resonator:
 
 class Reflector:
     def __init__(self, f0, Ql, TransmissionLine : TransmissionLine, Z_termination, sigma_f0=0, sigma_Qc=0) -> None:
-        self.f0, self.Ql = res_variance(f0,Ql,TransmissionLine.Qi,sigma_f0,sigma_Qc)
+        self.f0, self.Ql = (f0, Ql)
+        f0_C1, Ql_C1 = res_variance(f0,Ql,TransmissionLine.Qi,sigma_f0,sigma_Qc)
+        f0_L1, _     = res_variance(f0,Ql,TransmissionLine.Qi,sigma_f0,sigma_Qc)
 
         self.TransmissionLine = TransmissionLine
 
         assert len(np.atleast_1d(Z_termination)) < 2, "Z_termination has too many components (max 1 component)"
         self.Z_termination = np.atleast_1d(Z_termination)
 
-        self.Coupler = Coupler(f0=self.f0, Ql=self.Ql, Z_termination=[TransmissionLine.Z0, self.Z_termination[0]], Qi=TransmissionLine.Qi, res_length='quarterwave')
+        self.Coupler = Coupler(f0=f0_C1, Ql=Ql_C1, Z_termination=[TransmissionLine.Z0, self.Z_termination[0]], Qi=TransmissionLine.Qi, res_length='quarterwave')
 
-        self.l_res = self.resonator_length(f0,Ql)
+        self.l_res = self.resonator_length(f0_L1)
 
 
-    def resonator_length(self,f0,Ql):
+    def resonator_length(self,f0_var):
         Z1 = self.Z_termination[0]
         Zres = self.TransmissionLine.Z0
         
-        Z_Coupler = Coupler(f0=f0,Ql=Ql,Z_termination=[Zres, Z1],Qi=self.TransmissionLine.Qi).impedance(self.f0)
+        Z_Coupler = Coupler(f0=self.f0,Ql=self.Ql,Z_termination=[Zres, Z1],Qi=self.TransmissionLine.Qi).impedance(f0_var)
         
         kl = np.array(np.arctan( (Z1 - Z_Coupler) / (-1j * (Z1 / Zres - Z_Coupler  / Zres - Zres)) ))
         kl[kl<0] = kl[kl<0] + np.pi
 
-        lres = np.real(kl / self.TransmissionLine.wavenumber(self.f0))
+        lres = np.real(kl / self.TransmissionLine.wavenumber(f0_var))
         return lres
 
     def ABCD(self,f):
