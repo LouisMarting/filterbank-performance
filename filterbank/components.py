@@ -255,7 +255,7 @@ class BaseFilter:
         self.f0 = f0
         self.Ql = Ql
 
-        assert all(key in ('through','resonator','MKID') for key in TransmissionLines.keys()), "TranmissionLines dict needs at least the keys: ('through','resonator','MKID')"
+        assert set(TransmissionLines.keys()) >= {'through','resonator','MKID'}, "TranmissionLines dict needs at least the keys: ('through','resonator','MKID')"
         self.TransmissionLines = TransmissionLines
         self.TransmissionLine_through : TransmissionLine = self.TransmissionLines['through']
         self.TransmissionLine_resonator : TransmissionLine = self.TransmissionLines['resonator']
