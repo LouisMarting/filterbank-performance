@@ -341,11 +341,7 @@ class BaseFilter:
 
         i_peaks,peak_properties = find_peaks(S31_absSq_q,height=0.5*max(S31_absSq_q),prominence=0.02)
 
-        try:
-            i_peak = i_peaks[np.argmax(peak_properties["peak_heights"])]
-        except ValueError as e:
-            plt.plot(fq,S31_absSq_q)
-            raise e
+        i_peak = i_peaks[np.argmax(peak_properties["peak_heights"])]
         # f0, as realized in the filter (which is the peak with the highest height given a minimum relative height and prominence)
         self.f0_realized = fq[i_peak]
 
