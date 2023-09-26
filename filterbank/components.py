@@ -340,7 +340,7 @@ class BaseFilter:
  
         S31_absSq_q = np.interp(fq,self.f,self.S31_absSq)
 
-        i_peaks,peak_properties = find_peaks(S31_absSq_q,height=0.5*max(S31_absSq_q),prominence=0.05)
+        i_peaks,peak_properties = find_peaks(S31_absSq_q,height=0.5*max(S31_absSq_q),prominence=0.02)
 
         i_peak = i_peaks[np.argmax(peak_properties["peak_heights"])]
         # f0, as realized in the filter (which is the peak with the highest height given a minimum relative height and prominence)
