@@ -130,7 +130,6 @@ class Coupler:
             B = 2 * (R1 * X2 + R2 * X1) * (R1 + R2) + 2 *(X1 * X2 - R1 * R2) * (X1 + X2)
             C = (R1 * X2 + R2 * X1)**2 + (X1 * X2 - R1 * R2)**2
         
-        assert C < 0, f"Qc value is {Qc}, Ql value is {self.Ql}"
         X = (-B - np.sqrt(B**2 - 4 * A * C)) / (2 * A)
     
         C_coup = -1 / (2 * np.pi * self.f0 * X)
