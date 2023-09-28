@@ -1,5 +1,15 @@
 import numpy as np
 
+def lognormal(mean=0.0, sigma=1.0, size=None):
+    rng = np.random.default_rng()
+    E_x = mean
+    VAR_x = sigma**2
+
+    mu_log = np.log(E_x/( np.sqrt( VAR_x / (E_x**2) + 1 ) ))
+    sigma_log = np.sqrt( np.log( VAR_x / (E_x**2) + 1 ) )
+
+    return rng.lognormal(mu_log,sigma_log,size)
+
 def res_variance(f0,Ql,Qi,sigma_f0,sigma_Qc):
     if np.isinf(Qi):
         Qc = 2 * Ql
@@ -8,9 +18,9 @@ def res_variance(f0,Ql,Qi,sigma_f0,sigma_Qc):
     
     df = f0 / Ql
     
-    f0_var = np.random.normal(f0,df*sigma_f0)
+    f0_var = lognormal(f0,df*sigma_f0)
     try:
-        Qc_var = np.random.normal(Qc,Qc*sigma_Qc)
+        Qc_var = lognormal(Qc,Qc*sigma_Qc)
         assert Qc_var > 0, "Qc variance causes <0 Qc value"
     except AssertionError:
         Qc_var = Qc
