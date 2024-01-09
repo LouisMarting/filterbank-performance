@@ -1,3 +1,4 @@
+import copy
 import numpy as np
 import numpy.ma as ma
 from scipy.signal import find_peaks
@@ -578,7 +579,7 @@ class Filterbank:
 
         self.Filters = np.empty(self.n_filters,dtype=BaseFilter)
         for i in np.arange(self.n_filters):
-            self.Filters[i] = FilterClass(f0=self.f0[i], Ql=Ql, TransmissionLines = TransmissionLines, sigma_f0=sigma_f0, sigma_Qc=sigma_Qc, compensate=compensate)
+            self.Filters[i] = FilterClass(f0=self.f0[i], Ql=Ql, TransmissionLines = copy.deepcopy(TransmissionLines), sigma_f0=sigma_f0, sigma_Qc=sigma_Qc, compensate=compensate)
     
     
     def S(self,f):
