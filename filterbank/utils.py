@@ -1,6 +1,28 @@
 import numpy as np
 
+def first2dimstolast(matrix):
+    """
+    Function that swaps the first two dims of a numpy array to the last two dims,
+    preserving the order of the dims.
+    Useful for swapping the dims of an array containing ABCD matrices.
+    """
+    return np.moveaxis(matrix,[0,1],[-2,-1])
+
+def last2dimstofirst(matrix):
+    """
+    Function that swaps the first two dims of a numpy array to the last two dims,
+    preserving the order of the dims.
+    Useful for swapping the dims of an array containing ABCD matrices.
+    """
+    return np.moveaxis(matrix,[-2,-1],[0,1])
+
+
+
 def lognormal(mean=0.0, sigma=1.0, size=None):
+    """
+    Lognormal function using a mean and sigma of a normal distribution.
+
+    """
     rng = np.random.default_rng()
     E_x = mean
     VAR_x = sigma**2
