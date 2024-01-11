@@ -98,7 +98,7 @@ class Filterbank:
                     )
                     S_one_output = abcd2s(ABCD_through_filter,[Z0_thru,Z0_mkid])
 
-                    S[:,i+j+2] = S_one_output[:,i,1,0] # Si1
+                    S[:,i+j+2] = S_one_output[:,1,0] # Si1
                 
                 ABCD_preceding = chain(
                     ABCD_preceding,
