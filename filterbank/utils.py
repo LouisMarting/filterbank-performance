@@ -56,7 +56,10 @@ def res_variance(f0,Ql,Qi,sigma_f0,sigma_Qc):
     return f0_var, Ql_var
 
 
-def ABCD_eye(f):
-    return np.repeat(np.identity(2)[:,:,np.newaxis],len(f),axis=-1)
-
-
+def ABCD_eye(size,**ndarray_kwargs):
+    """
+    Create a ABCD matrix compatible array of unity (I) matrices for a given size.
+    This results in the 2 by 2 unity array to be in the last two dimensions, which is useful for matrix multiplications.
+    """
+    size = tuple(size) if np.iterable(size) else (size,)
+    return np.broadcast_to(np.eye(2,**ndarray_kwargs),shape=size+(2,2))

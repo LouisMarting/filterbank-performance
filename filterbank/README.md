@@ -3,4 +3,6 @@ README.md
 # Filterbank module
 
 TODO:
-- [ ] find a better name for the module
+- [ ] Find a better name for the module.
+- [ ] Add caching of filterbank simulation.
+- [ ] Write tests.

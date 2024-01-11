@@ -1,28 +1,43 @@
 import numpy as np
 from .utils import first2dimstolast,last2dimstofirst
 
-def chain(ABCDmatrix1,*ABCDmatrices):
-    if ABCDmatrices is None:
-        raise RuntimeError("chain() needs at least two ABCD matrices")
+def chain(*ABCDmatrices):
+    """
+    Function to facilitate chaining ABCD matrices.
 
-    ABCD_out = first2dimstolast(ABCDmatrix1)
-    for ABCDmatrix in ABCDmatrices:
-        ABCDmatrix = first2dimstolast(ABCDmatrix)
-        ABCD_out = ABCD_out @ ABCDmatrix
-    return last2dimstofirst(ABCD_out)
+    """
+    assert len(ABCDmatrices) >= 2, "chain() needs at least two ABCD matrices"
 
-def unchain(ABCDmatrix,*ABCDmatrices_to_remove,remove_from='front'):
-    assert remove_from in ('front','back')
+    ABCD = ABCDmatrices[0]
+    for ABCDmatrix in ABCDmatrices[1:]:
+        ABCD = ABCD @ ABCDmatrix
+    return ABCD
 
-    ABCD_out = ABCDmatrix
-    if remove_from == 'front':
-        for ABCDmatrix_to_remove in ABCDmatrices_to_remove:
-            ABCD_out = np.moveaxis(np.linalg.inv(np.moveaxis(ABCDmatrix_to_remove,[0,1],[-2,-1])) @ np.moveaxis(ABCD_out,[0,1],[-2,-1]),[-1,-2],[1,0])
-    elif remove_from == 'back':
-        for ABCDmatrix_to_remove in ABCDmatrices_to_remove:
-            ABCD_out = np.moveaxis(np.moveaxis(ABCD_out,[0,1],[-2,-1]) @ np.linalg.inv(np.moveaxis(ABCDmatrix_to_remove,[0,1],[-2,-1])),[-1,-2],[1,0])
+def unchain(*ABCDmatrices,at='front'):
+    """
+    Function to facilitate unchaining ABCD matrices
+
     
-    return ABCD_out
+    Please take into account the non-commutativity of matrix multiplications, with at={'front','back'}.
+
+
+    The order of matrices given is the order of unchaining. The first matrix is always the 'base'. 
+    The 'at' argument defines from what side the matrices are unchained, in the order they were given. 
+    The second matrix given is removed first, then the third, etc...
+
+    """
+    assert len(ABCDmatrices) >= 2, "unchain() needs at least two ABCD matrices"
+    assert at in ('front','back')
+
+    ABCD = ABCDmatrices[0]
+    if at == 'front':
+        for ABCDmatrix in ABCDmatrices[1:]:
+            ABCD = np.linalg.inv(ABCDmatrix) @ ABCD
+    elif at == 'back':
+        for ABCDmatrix in ABCDmatrices[1:]:
+            ABCD = ABCD @ np.linalg.inv(ABCDmatrix)
+    
+    return ABCD
 
 
 def abcd_parallel(ABCD1,ABCD2):
