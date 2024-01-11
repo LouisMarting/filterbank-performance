@@ -52,8 +52,9 @@ def abcd_shuntload(Z):
     """
     Calculate the ABCD matrix of a shunt load.
     """
-    Z = np.array(Z[...,np.newaxis,np.newaxis],dtype=np.cfloat)  # elegant solution to extend the dimension by two, 
-                                                                # allowing elegant use of np.ones_like(), np.zeros_like() and np.block()
+    Z = np.array(Z,dtype=np.cfloat)  
+    Z = Z[...,np.newaxis,np.newaxis]    # elegant solution to extend the dimension by two, 
+                                        # allowing elegant use of np.ones_like(), np.zeros_like() and np.block()
 
     A = np.ones_like(Z)
     B = np.zeros_like(Z)
@@ -69,8 +70,10 @@ def abcd_seriesload(Z):
     """
     Calculate the ABCD matrix of a series load.
     """
-    Z = np.array(Z[...,np.newaxis,np.newaxis],dtype=np.cfloat)
-
+    Z = np.array(Z,dtype=np.cfloat)  
+    Z = Z[...,np.newaxis,np.newaxis]    # elegant solution to extend the dimension by two, 
+                                        # allowing elegant use of np.ones_like(), np.zeros_like() and np.block()
+    
     A = np.ones_like(Z)
     B = Z
     C = np.zeros_like(Z)
