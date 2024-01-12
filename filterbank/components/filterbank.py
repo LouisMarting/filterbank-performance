@@ -76,7 +76,7 @@ class Filterbank:
                 )
             
             s_parameter_array_size = Filter.n_outputs() * self.n_filters + 2
-            S = np.empty((len(f),s_parameter_array_size,))
+            S = np.empty((len(f),s_parameter_array_size,),dtype=np.cfloat)
 
             for i,Filter in enumerate(self.Filters):
                 Filter : BaseFilter # set the expected datatype of Filter
@@ -91,6 +91,8 @@ class Filterbank:
                 # Calculate the equivalent ABCD to the ith detector
                 ABCD_to_MKID = Filter.ABCD_to_MKID(f,ABCD_succeeding)
 
+                assert len(ABCD_to_MKID) == Filter.n_outputs(), "Something seriously wrong here"
+
                 for j,ABCD_to_one_output in enumerate(ABCD_to_MKID):
                     ABCD_through_filter = chain(
                         ABCD_preceding,
@@ -98,7 +100,9 @@ class Filterbank:
                     )
                     S_one_output = abcd2s(ABCD_through_filter,[Z0_thru,Z0_mkid])
 
-                    S[:,i+j+2] = S_one_output[:,1,0] # Si1
+                    index = (Filter.n_outputs() * i)+j+2
+                    
+                    S[:,index] = S_one_output[:,1,0] # Si1
                 
                 ABCD_preceding = chain(
                     ABCD_preceding,
@@ -135,9 +139,9 @@ class Filterbank:
 
         for i in np.arange(self.n_filters):
             if n_interp > 1:
-                S31_absSq_q = np.interp(fq,self.f,self.S31_absSq_list[i])
+                S31_absSq_q = np.interp(fq,self.f,self.S31_absSq_list[:,i])
             else:
-                S31_absSq_q = self.S31_absSq_list[i]
+                S31_absSq_q = self.S31_absSq_list[:,i]
 
             n_tries = 5
             width_in_samples = int(np.ceil(self.f0[i] / self.Ql / dfq))

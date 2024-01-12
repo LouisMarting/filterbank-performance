@@ -298,5 +298,5 @@ class DirectionalFilter(BaseFilter):
         
         ABCD_port3 = abcd_parallel(ABCD_upper_port3,self.Resonator1.ABCD(f))
 
-        return ABCD_port3,ABCD_port4
+        return (ABCD_port3,ABCD_port4,)
 
