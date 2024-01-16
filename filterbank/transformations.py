@@ -1,5 +1,4 @@
 import numpy as np
-from .utils import first2dimstolast,last2dimstofirst
 
 def chain(*ABCDmatrices):
     """

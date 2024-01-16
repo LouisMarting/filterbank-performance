@@ -196,6 +196,7 @@ class Filterbank:
 
         return self.f0_realized, self.Ql_realized, self.inband_filter_eff, self.inband_fraction
     
+    
     def reset_and_shuffle(self):
         for i in np.arange(self.n_filters):
             self.Filters[i] = self.FilterClass(f0=self.f0[i], Ql=self.Ql, TransmissionLines = self.TransmissionLines, sigma_f0=self.sigma_f0, sigma_Qc=self.sigma_Qc)
