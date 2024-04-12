@@ -24,6 +24,9 @@ def unchain(*ABCDmatrices,at='front'):
     The 'at' argument defines from what side the matrices are unchained, in the order they were given. 
     The second matrix given is removed first, then the third, etc...
 
+    TODO: Since we always use 2x2 matrices for the ABCD matrix calculations, 
+    we can use the shorthand of the inverse for a 2x2 matrix to hopefully speed things up.
+
     """
     assert len(ABCDmatrices) >= 2, "unchain() needs at least two ABCD matrices"
     assert at in ('front','back')

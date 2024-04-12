@@ -70,22 +70,28 @@ class BaseFilter:
         if np.array_equal(self.f,f):
             return self.S_param
         else:
-            S = []
-            S.append(abcd2s(self.ABCD(f),self.TransmissionLine_through.Z0))
+            s_parameter_array_size = self.n_outputs() + 2
+            S = np.empty((len(f),s_parameter_array_size,),dtype=np.cfloat)
+            S_through  = abcd2s(self.ABCD(f),self.TransmissionLine_through.Z0)
+            S[:,0] = S_through[:,0,0] # S11
+            S[:,1] = S_through[:,1,0] # S21
 
-            for ABCD_to_one_output in self.ABCD_to_MKID(f,ABCD_eye(f)):
-                S.append(abcd2s(ABCD_to_one_output,[self.TransmissionLine_through.Z0,self.TransmissionLine_MKID.Z0]))
+            for i,ABCD_to_one_output in enumerate(self.ABCD_to_MKID(f,ABCD_eye(len(f)))):
+                S_one_output = abcd2s(ABCD_to_one_output,[self.TransmissionLine_through.Z0,self.TransmissionLine_MKID.Z0])
+
+                index = i + 2
+                S[:,index] = S_one_output[:,1,0] # Si1
 
             self.S_param = S
             self.f = f
 
 
-            self.S11_absSq = np.abs(self.S_param[0][0][0])**2
-            self.S21_absSq = np.abs(self.S_param[0][1][0])**2
-            self.S31_absSq = np.abs(self.S_param[1][1][0])**2
+            self.S11_absSq = np.abs(S[:,0])**2
+            self.S21_absSq = np.abs(S[:,1])**2
+            self.S31_absSq = np.abs(S[:,2])**2
 
-            if np.shape(self.S_param)[0] > 2:
-                self.S41_absSq = np.abs(self.S_param[2][1][0])**2
+            if self.n_outputs() == 2:
+                self.S41_absSq = np.abs(self.S_param[:,3])**2
 
             return self.S_param
     

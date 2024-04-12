@@ -4,7 +4,7 @@ import copy
 
 from ..utils import ABCD_eye
 from ..transformations import abcd2s,chain,unchain
-from .transmission_line_filters import BaseFilter
+from .transmission_line_filters import BaseFilter, DirectionalFilter, ManifoldFilter, ReflectorFilter
 
 
 class Filterbank:
@@ -27,6 +27,7 @@ class Filterbank:
         self.Ql = Ql
         self.sigma_f0 = sigma_f0
         self.sigma_Qc = sigma_Qc
+        self.compensate = compensate
         
         assert oversampling > 0
         self.oversampling = oversampling
@@ -209,3 +210,44 @@ class Filterbank:
 
         self.f0_realized = None
         self.Ql_realized = None
+
+    def sparse_filterbank(self,indices):
+        self.S_param = None
+        self.f = None
+        self.S11_absSq = None
+        self.S21_absSq = None
+        self.S31_absSq_list = None
+
+        self.f0_realized = None
+        self.Ql_realized = None
+        self.inband_filter_eff = None
+        self.inband_fraction = None
+
+        self.n_filters = len(indices)
+
+        #select only the sparse filters.
+        f0_full = self.f0
+        self.f0 = f0_full[indices]
+
+        self.Filters = np.empty(self.n_filters,dtype=BaseFilter)
+        for i in np.arange(self.n_filters):
+            self.Filters[i] = self.FilterClass(f0=self.f0[i], Ql=self.Ql, TransmissionLines = copy.deepcopy(self.TransmissionLines), sigma_f0=self.sigma_f0, sigma_Qc=self.sigma_Qc, compensate=self.compensate)
+
+    def coupler_variance(self,Qc_shifted):
+
+        for Filter in self.Filters:
+            Filter : BaseFilter
+
+            if type(Filter) == DirectionalFilter:
+                Filter.Resonator1.Coupler1.C = Filter.Resonator1.Coupler1.capacitance(Qc_shifted)
+                Filter.Resonator1.Coupler2.C = Filter.Resonator1.Coupler2.capacitance(Qc_shifted)
+                Filter.Resonator2.Coupler1.C = Filter.Resonator2.Coupler1.capacitance(Qc_shifted)
+                Filter.Resonator2.Coupler2.C = Filter.Resonator2.Coupler2.capacitance(Qc_shifted)
+            elif type(Filter) == ReflectorFilter:
+                Filter.Resonator.Coupler1.C = Filter.Resonator.Coupler1.capacitance(Qc_shifted)
+                Filter.Resonator.Coupler2.C = Filter.Resonator.Coupler2.capacitance(Qc_shifted)
+                Filter.Reflector.Coupler.C = Filter.Reflector.Coupler.capacitance(Qc_shifted)
+            elif type(Filter) == ManifoldFilter:
+                Filter.Resonator.Coupler1.C = Filter.Resonator.Coupler1.capacitance(Qc_shifted)
+                Filter.Resonator.Coupler2.C = Filter.Resonator.Coupler2.capacitance(Qc_shifted)
+        return
