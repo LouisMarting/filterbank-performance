@@ -89,15 +89,15 @@ S21 = FB.S21_absSq
 sparse_indices = np.arange(0,len(FB.f0),3)
 
 
-FB.sparse_filterbank(sparse_indices)
+# FB.sparse_filterbank(sparse_indices)
 
 # Check downshift of Qc if that explains the freq shift
 FB.coupler_variance(Qc_shifted=20)
 
 
 # Caculate S-Parameters and realized values (suppress output)
-FB.S(f);
-FB.realized_parameters();
+FB.S_sparse(f,sparse_indices);
+FB.realized_parameters_sparse(sparse_indices);
 
 # plot filterbank
 S31_all = FB.S31_absSq_list
@@ -110,16 +110,16 @@ cmap = cm.get_cmap('rainbow').copy()
 norm = mpl.colors.Normalize(vmin=0, vmax=FB.n_filters)
 
 for i,S31_absSq in enumerate(S31_all.T):
-    ax.plot(f/1e9,S31_absSq,color=cmap(norm(i)))
+    ax.plot(f/1e9,S31_absSq,color=cmap(norm(sparse_indices[i])))
 
 ax.plot(f/1e9,FB.S11_absSq,color="m",linewidth='1')
 ax.plot(f/1e9,FB.S21_absSq,color="c",linewidth='1')
 
 ax.plot(f/1e9,sum_filters,color="#808080",linewidth='1')
 
-ax.set_yscale('log')
+# ax.set_yscale('log')
 
-ax.set_ylim(1e-2,1e0)
+ax.set_ylim(0,1)
 
 esa_fb_sparse = np.column_stack((FB.f,FB.S11_absSq,FB.S21_absSq,FB.S31_absSq_list,sum_filters))
 

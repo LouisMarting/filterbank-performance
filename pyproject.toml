@@ -8,7 +8,7 @@ description = "Model for on-chip superconducting filterbanks"
 version = "0.1.0"
 # readme = "README.md"
 authors = [
-    { name = "Louis Marting", email = "louis.marting@tudelft.nl" }
+    { name = "Louis Marting", email = "l.h.marting@tudelft.nl" }
 ]
 dependencies = [
     "scipy",

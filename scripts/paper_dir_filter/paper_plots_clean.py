@@ -352,7 +352,7 @@ color = ['#C20','#17C','#000','#C20','#17C','#000','#555','#C20','#17C','#000','
 
 for i,line in enumerate(lines):
     if i == 6:
-        # line.set_linestyle('-.')
+        line.set_linestyle(':')
         pass
     if i < 3:
         line.set_linestyle('--')
@@ -385,6 +385,7 @@ for legend_line in legend.get_lines():
 savestr = fig_path + "single_filter_response.pdf"
 fig.savefig(fname=savestr)
 fig.set_tight_layout(True)
+plt.show()
 
 # %% [markdown]
 # ## Filterbank
