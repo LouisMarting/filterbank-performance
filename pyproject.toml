@@ -13,7 +13,8 @@ authors = [
 dependencies = [
     "scipy",
     "matplotlib",
-    "numpy"
+    "numpy",
+    "toml"
 ]
 
 #setuptools automatically checks all folders under the root folder. the setting namespaces = false prevents this.

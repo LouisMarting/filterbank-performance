@@ -1,0 +1,44 @@
+# Input/Output section
+[input_output]
+input_data_folder = "/path/to/input"
+output_data_folder = "/path/to/output"
+
+# Filterbank configuration
+[filterbank]
+# You can either specify a list of resonance frequencies or a range with f0_min and f0_max
+# Uncomment the option that applies
+
+# Option 1: Specify list of resonance frequencies
+# f0 = [100.0, 200.0, 300.0]
+
+# Option 2: Specify range of resonance frequencies
+f0_min = 100.0
+f0_max = 500.0
+
+# Specify two out of these three parameters: Ql, R, and OS
+# Uncomment the two that apply
+Ql = 50.0  # loaded Q-factor
+R = 10.0   # spectral resolution
+# OS = 2.0 # oversampling-factor
+
+# Transmission line configurations
+[filterbank.transmissionlines.signal]
+Z0 = 50.0         # impedance of the signal line
+eps_eff = 3.0     # effective dielectric constant for signal line
+# Qi = 1000.0      # optional loss factor for signal line
+
+[filterbank.transmissionlines.resonator]
+Z0 = 75.0         # impedance of the resonator line
+eps_eff = 2.5     # effective dielectric constant for resonator line
+# Qi = 1500.0      # optional loss factor for resonator line
+
+[filterbank.transmissionlines.MKID]
+Z0 = 60.0         # impedance of the MKID line
+eps_eff = 2.8     # effective dielectric constant for MKID line
+# Qi = 2000.0      # optional loss factor for MKID line
+
+# Frequency range for calculation
+[frequency_range]
+f_min = 90.0
+f_max = 600.0
+nf = 1000  # number of points in the frequency range
